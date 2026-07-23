@@ -1,0 +1,74 @@
+---
+import "@/styles/docs.css";
+import { getEntry, render } from "astro:content";
+import AppHeader from "@/components/AppHeader.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { getCanonicalUrl } from "@/data/seo";
+import { languageKeys, locales, siteConfig, type LanguageKey } from "@/data/site";
+
+export function getStaticPaths() {
+    return languageKeys.map((lang) => ({
+        params: { lang },
+        props: { lang },
+    }));
+}
+
+type Props = {
+    lang: LanguageKey;
+};
+
+const { lang } = Astro.props;
+const locale = locales[lang];
+const pagePath = siteConfig.mcpDocsPath;
+const docEntry = await getEntry("mcpDocs", lang);
+
+if (!docEntry) {
+    throw new Error(`Missing MCP docs content for locale: ${lang}`);
+}
+
+const { Content } = await render(docEntry);
+const pageTitle = `${locale.mcpDocsPageTitle} - ${siteConfig.name}`;
+const canonicalUrl = getCanonicalUrl(lang, pagePath);
+const techArticleStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    headline: locale.mcpDocsPageTitle,
+    description: locale.mcpDocsPageDescription,
+    inLanguage: locale.htmlLang,
+    url: canonicalUrl,
+    mainEntityOfPage: canonicalUrl,
+    about: [
+        "ALCOMD3",
+        "Model Context Protocol",
+        "MCP bridge",
+        "VRChat project management",
+    ],
+    author: {
+        "@type": "Organization",
+        name: siteConfig.authorName,
+        url: siteConfig.authorUrl,
+    },
+    publisher: {
+        "@type": "Organization",
+        name: siteConfig.authorName,
+        url: siteConfig.authorUrl,
+    },
+};
+---
+
+<BaseLayout
+    locale={locale}
+    pagePath={pagePath}
+    title={pageTitle}
+    description={locale.mcpDocsPageDescription}
+    twitterDescription={locale.mcpDocsPageDescription}
+    ogImageAlt={locale.mcpDocsPageTitle}
+    structuredData={techArticleStructuredData}
+>
+    <AppHeader locale={locale} pagePath={pagePath} />
+    <main class="responsive large-padding">
+        <article class="docs-content surface-container round large-padding">
+            <Content />
+        </article>
+    </main>
+</BaseLayout>

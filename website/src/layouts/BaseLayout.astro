@@ -1,0 +1,210 @@
+---
+import "@/generated/beer-themed.css";
+import "@/generated/noto-fonts.css";
+import "@/styles/site-background.css";
+import ClientScripts from "@/components/ClientScripts.astro";
+import { getAlternateLocaleLinks, getCanonicalUrl } from "@/data/seo";
+import { siteConfig, type LocaleContent } from "@/data/site";
+import { themeModeStorageKey } from "@/data/ui-preferences";
+
+type Props = {
+    locale: LocaleContent;
+    pagePath?: string;
+    title?: string;
+    description?: string;
+    twitterDescription?: string;
+    ogImageAlt?: string;
+    structuredData?: Record<string, unknown> | Record<string, unknown>[];
+};
+
+const {
+    locale,
+    description = locale.description,
+    ogImageAlt = locale.ogImageAlt,
+    pagePath = "",
+    structuredData: extraStructuredData,
+    title = locale.title,
+    twitterDescription = locale.twitterDescription,
+} = Astro.props;
+const canonicalUrl = getCanonicalUrl(locale.lang, pagePath);
+const alternateLocaleLinks = getAlternateLocaleLinks(pagePath);
+const softwareApplicationUrl = getCanonicalUrl(locale.lang);
+const siteUrl = Astro.site ?? new URL(canonicalUrl);
+const ogImageUrl = new URL(siteConfig.ogImagePath, siteUrl).href;
+const logoUrl = new URL(siteConfig.logoPath, siteUrl).href;
+const stableDownloads = siteConfig.stableRelease;
+const fontPreloadGroups = {
+    latin: [
+        "/fonts/noto-sans-latin-400-normal.woff2",
+        "/fonts/noto-sans-latin-500-normal.woff2",
+        "/fonts/noto-sans-latin-700-normal.woff2",
+    ],
+    "zh-cn": [
+        "/fonts/noto-sans-sc-chinese-simplified-400-normal.woff2",
+        "/fonts/noto-sans-sc-chinese-simplified-500-normal.woff2",
+        "/fonts/noto-sans-sc-chinese-simplified-700-normal.woff2",
+    ],
+    "zh-tw": [
+        "/fonts/noto-sans-tc-chinese-traditional-400-normal.woff2",
+        "/fonts/noto-sans-tc-chinese-traditional-500-normal.woff2",
+        "/fonts/noto-sans-tc-chinese-traditional-700-normal.woff2",
+    ],
+    "ja-jp": [
+        "/fonts/noto-sans-jp-japanese-400-normal.woff2",
+        "/fonts/noto-sans-jp-japanese-500-normal.woff2",
+        "/fonts/noto-sans-jp-japanese-700-normal.woff2",
+    ],
+    "en-us": [],
+};
+const fontPreloads = [
+    ...fontPreloadGroups.latin,
+    ...fontPreloadGroups[locale.lang],
+];
+const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: siteConfig.name,
+    applicationCategory: "DeveloperApplication",
+    applicationSubCategory: locale.productSubtitle,
+    ...(stableDownloads.operatingSystems.length > 0
+        ? { operatingSystem: stableDownloads.operatingSystems }
+        : {}),
+    url: softwareApplicationUrl,
+    image: ogImageUrl,
+    logo: logoUrl,
+    codeRepository: siteConfig.repositoryUrl,
+    keywords: locale.seoKeywords,
+    featureList: locale.softwareFeatures,
+    isAccessibleForFree: true,
+    inLanguage: locale.htmlLang,
+    description: locale.structuredDescription,
+    offers: {
+        "@type": "Offer",
+        price: 0,
+    },
+    softwareVersion: stableDownloads.version,
+    ...(stableDownloads.downloadUrls.length > 0
+        ? { downloadUrl: stableDownloads.downloadUrls }
+        : {}),
+    author: {
+        "@type": "Organization",
+        name: siteConfig.authorName,
+        url: siteConfig.authorUrl,
+    },
+    publisher: {
+        "@type": "Organization",
+        name: siteConfig.authorName,
+        url: siteConfig.authorUrl,
+    },
+};
+const structuredDataItems = [
+    structuredData,
+    ...(Array.isArray(extraStructuredData) ? extraStructuredData : extraStructuredData ? [extraStructuredData] : []),
+];
+const themeBootstrapConfig = {
+    themeModeStorageKey,
+};
+---
+
+<!doctype html>
+<html lang={locale.htmlLang}>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content={siteConfig.themeColorLight}>
+        <meta name="color-scheme" content="light dark">
+        <script is:inline type="application/json" id="theme-bootstrap-config" set:html={JSON.stringify(themeBootstrapConfig)} />
+        <script is:inline>
+            (() => {
+                const configElement = document.getElementById("theme-bootstrap-config");
+                const config = configElement?.textContent ? JSON.parse(configElement.textContent) : {};
+                const root = document.documentElement;
+                const systemThemeMode = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+                let storedThemeMode = null;
+
+                try {
+                    storedThemeMode = localStorage.getItem(config.themeModeStorageKey);
+                } catch {
+                    storedThemeMode = null;
+                }
+
+                const themeMode = ["light", "dark", "system"].includes(storedThemeMode) ? storedThemeMode : "system";
+                const resolvedThemeMode = themeMode === "system" ? systemThemeMode : themeMode;
+
+                root.dataset.themeMode = resolvedThemeMode;
+                root.style.colorScheme = resolvedThemeMode;
+            })();
+        </script>
+        <meta name="description" content={description}>
+        <meta name="robots" content="index, follow">
+        <meta name="author" content={siteConfig.authorName}>
+        <meta name="application-name" content={siteConfig.name}>
+        <meta name="apple-mobile-web-app-title" content={siteConfig.shortName}>
+        <meta name="format-detection" content="telephone=no">
+        <link rel="canonical" href={canonicalUrl}>
+        <link rel="sitemap" href="/sitemap-index.xml">
+        {alternateLocaleLinks.map((link) => (
+            <link rel="alternate" hreflang={link.hreflang} href={link.href}>
+        ))}
+        <meta property="og:type" content="website">
+        <meta property="og:site_name" content={siteConfig.name}>
+        <meta property="og:title" content={title}>
+        <meta property="og:description" content={description}>
+        <meta property="og:url" content={canonicalUrl}>
+        <meta property="og:image" content={ogImageUrl}>
+        <meta property="og:image:alt" content={ogImageAlt}>
+        <meta property="og:image:width" content={String(siteConfig.ogImageWidth)}>
+        <meta property="og:image:height" content={String(siteConfig.ogImageHeight)}>
+        <meta property="og:image:type" content={siteConfig.ogImageType}>
+        <meta property="og:locale" content={locale.ogLocale}>
+        <meta name="twitter:card" content="summary">
+        <meta name="twitter:title" content={title}>
+        <meta name="twitter:description" content={twitterDescription}>
+        <meta name="twitter:image" content={ogImageUrl}>
+        <meta name="twitter:image:alt" content={ogImageAlt}>
+        <title>{title}</title>
+        <link rel="icon" href="/assets/favicon.ico" sizes="any">
+        <link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-32.png">
+        <link rel="icon" type="image/png" sizes="64x64" href="/assets/icon-64.png">
+        <link rel="apple-touch-icon" href="/assets/icon-128.png">
+        <link rel="manifest" href="/site.webmanifest">
+        <link rel="preload" href="/beercss/material-symbols-outlined.woff2" as="font" type="font/woff2" crossorigin>
+        {fontPreloads.map((fontUrl) => (
+            <link rel="preload" href={fontUrl} as="font" type="font/woff2" crossorigin>
+        ))}
+        <script is:inline type="application/ld+json" set:html={JSON.stringify(structuredDataItems)} />
+    </head>
+    <body>
+        <script>
+            import { defaultUiLocale, supportedUiLocales } from "@/data/i18n";
+            import { resolveUiPreferences, themeModeStorageKey, uiLocaleStorageKey } from "@/data/ui-preferences";
+
+            function getLocalStorageValue(key: string) {
+                try {
+                    return localStorage.getItem(key);
+                } catch {
+                    return null;
+                }
+            }
+
+            const systemThemeMode = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+            const preferences = resolveUiPreferences({
+                localLocale: getLocalStorageValue(uiLocaleStorageKey),
+                accountLocale: null,
+                browserLocale: navigator.languages?.length ? navigator.languages : navigator.language,
+                localThemeMode: getLocalStorageValue(themeModeStorageKey),
+                accountThemeMode: null,
+                systemThemeMode,
+                defaultLocale: defaultUiLocale,
+                defaultThemeMode: "system",
+                supportedLocales: supportedUiLocales,
+            });
+
+            document.documentElement.dataset.themeMode = preferences.resolved_theme_mode;
+            document.body.classList.remove("light", "dark");
+            document.body.classList.add(preferences.resolved_theme_mode);
+        </script>
+        <slot />
+        <ClientScripts />
+    </body>
+</html>

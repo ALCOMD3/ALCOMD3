@@ -1,0 +1,9 @@
+productName = "ALCOMD3"
+mainBinaryName = "ALCOMD3"
+identifier = "com.cqmhv.alcomd3"
+
+[build]
+beforeBuildCommand = "npm run build"
+beforeDevCommand = "npm run dev"
+devUrl = "http://localhost:3030"
+frontendDist = "out"

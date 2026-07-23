@@ -1,0 +1,13 @@
+[package]
+name = "alcomd3-app-paths"
+version.workspace = true
+description = "Shared local filesystem paths for ALCOMD3 processes"
+
+homepage.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+edition.workspace = true
+
+[target."cfg(windows)".dependencies]
+dirs-sys = "0.5"

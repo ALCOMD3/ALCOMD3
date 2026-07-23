@@ -1,0 +1,9 @@
+{
+    "en": "Adds stable Windows x64, Apple Silicon macOS, and Linux x64 packages with signed updates for Windows, macOS, and AppImage. Linux package handling now preserves dpkg diversion ownership. The macOS build is ad-hoc signed, not Apple-notarized, and may require Open Anyway on first launch.",
+    "de": "Fügt stabile Pakete für Windows x64, Apple Silicon macOS und Linux x64 mit signierten Updates für Windows, macOS und AppImage hinzu. Die Linux-Paketverarbeitung bewahrt nun die Eigentümerschaft von dpkg-Diversionen. Der macOS-Build ist ad-hoc signiert, nicht von Apple notarisiert und kann beim ersten Start „Dennoch öffnen“ erfordern.",
+    "fr": "Ajoute des paquets stables pour Windows x64, macOS Apple Silicon et Linux x64 avec des mises à jour signées pour Windows, macOS et AppImage. La gestion des paquets Linux préserve désormais la propriété des diversions dpkg. La version macOS est signée ad hoc, non notariée par Apple, et peut nécessiter « Ouvrir quand même » au premier lancement.",
+    "ja": "Windows x64、Apple Silicon macOS、Linux x64 向け stable package と、Windows・macOS・AppImage 用の署名済み update を追加しました。Linux package 処理は dpkg diversion の所有権を維持します。macOS 版は ad-hoc 署名済みですが Apple notarization 未実施のため、初回起動時に「このまま開く」が必要な場合があります。",
+    "ko": "Windows x64, Apple Silicon macOS 및 Linux x64용 안정 패키지와 Windows, macOS, AppImage용 서명된 업데이트를 추가합니다. Linux 패키지 처리는 이제 dpkg diversion 소유권을 유지합니다. macOS 빌드는 ad-hoc 서명되었지만 Apple 공증을 받지 않아 처음 실행할 때 ‘확인 없이 열기’가 필요할 수 있습니다.",
+    "zh_hans": "新增 Windows x64、Apple Silicon macOS 和 Linux x64 稳定版软件包，以及适用于 Windows、macOS 和 AppImage 的已签名更新。Linux 软件包处理现在会保留 dpkg diversion 所有权。macOS 版经过 ad-hoc 签名但未经 Apple 公证，首次启动时可能需要选择“仍要打开”。",
+    "zh_hant": "新增 Windows x64、Apple Silicon macOS 和 Linux x64 穩定版軟體包，以及適用於 Windows、macOS 和 AppImage 的已簽署更新。Linux 軟體包處理現在會保留 dpkg diversion 所有權。macOS 版經過 ad-hoc 簽署但未經 Apple 公證，首次啟動時可能需要選擇「仍要打開」。"
+}

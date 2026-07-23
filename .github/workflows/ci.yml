@@ -1,0 +1,162 @@
+name: Continuous integration
+
+on:
+    push:
+        branches:
+            - main
+    pull_request:
+        types:
+            - opened
+            - synchronize
+            - reopened
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: ci-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    rust:
+        name: Rust
+        runs-on: windows-2025
+        timeout-minutes: 60
+        steps:
+            - name: Checkout source
+              uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+              with:
+                  persist-credentials: false
+
+            - name: Set up pinned Rust toolchain
+              shell: pwsh
+              run: |
+                  $config = Get-Content alcomd3.config.json -Raw | ConvertFrom-Json
+                  $toolchain = $config.releaseAutomation.rustToolchain
+                  if ([string]::IsNullOrWhiteSpace($toolchain)) {
+                      throw "releaseAutomation.rustToolchain is not configured"
+                  }
+                  rustup toolchain install $toolchain --profile minimal --component clippy,rustfmt --no-self-update
+                  rustup default $toolchain
+
+            - name: Check Rust formatting
+              run: cargo fmt --all --check
+
+            - name: Run Clippy
+              run: >-
+                  cargo clippy
+                  --workspace
+                  --exclude windows-installer-wrapper
+                  --all-targets
+                  --locked
+                  --
+                  -D clippy::correctness
+
+            - name: Check Rust workspace
+              run: >-
+                  cargo check
+                  --workspace
+                  --exclude windows-installer-wrapper
+                  --locked
+
+            - name: Test Rust workspace
+              run: >-
+                  cargo test
+                  --workspace
+                  --exclude windows-installer-wrapper
+                  --locked
+
+    gui:
+        name: GUI
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
+        defaults:
+            run:
+                working-directory: vrc-get-gui
+        steps:
+            - name: Checkout source
+              uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+              with:
+                  persist-credentials: false
+
+            - name: Set up Node.js 24
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version: 24
+                  cache: npm
+                  cache-dependency-path: vrc-get-gui/package-lock.json
+
+            - name: Install GUI dependencies
+              run: npm ci
+
+            - name: Audit GUI dependencies
+              run: npm audit --audit-level=high
+
+            - name: Check GUI formatting and locales
+              run: npm run check
+
+            - name: Lint GUI
+              run: npm run lint
+
+            - name: Test GUI
+              run: npm test
+
+            - name: Build GUI
+              run: npm run build
+
+    website:
+        name: Website
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
+        defaults:
+            run:
+                working-directory: website
+        steps:
+            - name: Checkout source
+              uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+              with:
+                  persist-credentials: false
+
+            - name: Set up Node.js 24
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version: 24
+                  cache: npm
+                  cache-dependency-path: website/package-lock.json
+
+            - name: Install Website dependencies
+              run: npm ci
+
+            - name: Audit Website dependencies
+              run: npm audit --audit-level=high
+
+            - name: Install Chromium
+              run: npx playwright install --with-deps chromium
+
+            - name: Check Website
+              run: npm run check
+
+            - name: Test Website
+              run: npm test
+
+    gate:
+        name: Gate
+        if: always()
+        needs:
+            - rust
+            - gui
+            - website
+        runs-on: ubuntu-24.04
+        timeout-minutes: 5
+        steps:
+            - name: Require successful checks
+              env:
+                  RUST_RESULT: ${{ needs.rust.result }}
+                  GUI_RESULT: ${{ needs.gui.result }}
+                  WEBSITE_RESULT: ${{ needs.website.result }}
+              run: |
+                  if [[ "$RUST_RESULT" != "success" || "$GUI_RESULT" != "success" || "$WEBSITE_RESULT" != "success" ]]; then
+                      echo "Required checks did not all pass: Rust=$RUST_RESULT GUI=$GUI_RESULT Website=$WEBSITE_RESULT" >&2
+                      exit 1
+                  fi

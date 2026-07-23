@@ -1,0 +1,96 @@
+name: "[ALCOMD3] Bug Report"
+description: Create a bug report of ALCOMD3 / ALCOMD3のバグを報告する / 报告 ALCOMD3 的问题
+labels: [ "bug", "vrc-get-gui" ]
+
+body:
+  - type: textarea
+    attributes:
+      label: Description of the bug / バグの説明 / 问题描述
+      description: |
+        Please describe the bug.
+        どんなバグですか?
+        请描述遇到的问题。
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Steps to Reproduce / 再現手順 / 复现步骤
+      placeholder: |
+        1. Go to '...' / 〇〇を開く / 打开……
+        2. Click on '....' / 〇〇をクリックする / 点击……
+        3. See error / エラーが表示される / 看到错误
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Expected Behavior / 想定される挙動 / 预期行为
+      description: |
+        What you expected to happen?
+        本来どうあるべきですか?
+        你预期应该发生什么？
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Screenshots / スクリーンショット / 截图
+      description: |
+        If possible, add screenshots to help explain your problem.
+        状況の理解がしやすいように、可能であればスクリーンショットを貼って下さい。
+        如果可以，请添加截图来帮助说明问题。
+
+  - type: input
+    id: version
+    attributes:
+      label: Software Version / バージョン情報 / 软件版本
+      description: |
+        What is the version of ALCOMD3?
+        ALCOMD3のバージョンは何ですか?
+        你使用的 ALCOMD3 版本是什么？
+      placeholder: 0.1.0-beta.20
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      description: |
+        Which OS are you using?
+        使用しているOSは何ですか?
+        你使用的操作系统是什么？
+      placeholder: Windows 10 Pro 22H2, macOS 14.3.1, etc.
+    validations:
+      required: true
+
+  - type: input
+    id: webview-version
+    attributes:
+      label: Webview Version / Webviewバージョン / Webview 版本
+      description: |
+        What's the Webview version?
+        This is not strictly related to your browser version or OS version.
+        If you're not sure, please left it blank.
+        You can find this information in the ALCOMD3 settings page.
+        If you created this issue from ALCOMD3's settings page, this field will be filled automatically.
+        Webviewのバージョンは何ですか?
+        これはブラウザのバージョンやOSのバージョンとは異なります。
+        よく分からない場合は空欄にして下さい。
+        この情報はALCOMD3の設定画面にあります。
+        ALCOMD3の設定画面からissueを作成した場合、このフィールドは自動的に埋められます。
+        Webview 版本是什么？
+        这不一定等同于浏览器版本或系统版本。
+        如果不确定，可以留空。
+        你可以在 ALCOMD3 的设置页面找到该信息。
+        如果你是从 ALCOMD3 设置页面创建 issue，该字段会自动填写。
+      placeholder: 19618.1.15.11.14
+
+  - type: textarea
+    attributes:
+      label: Additional context / 補足 / 补充信息
+      description: |
+        Add any other context about the problem here.
+        補足したい内容があればここに書いて下さい。
+        如有其他补充信息，请写在这里。

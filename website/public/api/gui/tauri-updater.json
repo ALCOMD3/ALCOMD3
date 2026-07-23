@@ -1,0 +1,37 @@
+{
+  "version": "2.1.2",
+  "notes": "ALCOMD3 v2.1.2. See https://github.com/CQMHV/ALCOMD3/releases/tag/v2.1.2 for details.",
+  "notes_i18n": {
+    "de": "Fügt stabile Pakete für Windows x64, Apple Silicon macOS und Linux x64 mit signierten Updates für Windows, macOS und AppImage hinzu. Die Linux-Paketverarbeitung bewahrt nun die Eigentümerschaft von dpkg-Diversionen. Der macOS-Build ist ad-hoc signiert, nicht von Apple notarisiert und kann beim ersten Start „Dennoch öffnen“ erfordern.\n\nhttps://github.com/CQMHV/ALCOMD3/releases/tag/v2.1.2",
+    "en": "Adds stable Windows x64, Apple Silicon macOS, and Linux x64 packages with signed updates for Windows, macOS, and AppImage. Linux package handling now preserves dpkg diversion ownership. The macOS build is ad-hoc signed, not Apple-notarized, and may require Open Anyway on first launch.\n\nhttps://github.com/CQMHV/ALCOMD3/releases/tag/v2.1.2",
+    "fr": "Ajoute des paquets stables pour Windows x64, macOS Apple Silicon et Linux x64 avec des mises à jour signées pour Windows, macOS et AppImage. La gestion des paquets Linux préserve désormais la propriété des diversions dpkg. La version macOS est signée ad hoc, non notariée par Apple, et peut nécessiter « Ouvrir quand même » au premier lancement.\n\nhttps://github.com/CQMHV/ALCOMD3/releases/tag/v2.1.2",
+    "ja": "Windows x64、Apple Silicon macOS、Linux x64 向け stable package と、Windows・macOS・AppImage 用の署名済み update を追加しました。Linux package 処理は dpkg diversion の所有権を維持します。macOS 版は ad-hoc 署名済みですが Apple notarization 未実施のため、初回起動時に「このまま開く」が必要な場合があります。\n\nhttps://github.com/CQMHV/ALCOMD3/releases/tag/v2.1.2",
+    "ko": "Windows x64, Apple Silicon macOS 및 Linux x64용 안정 패키지와 Windows, macOS, AppImage용 서명된 업데이트를 추가합니다. Linux 패키지 처리는 이제 dpkg diversion 소유권을 유지합니다. macOS 빌드는 ad-hoc 서명되었지만 Apple 공증을 받지 않아 처음 실행할 때 ‘확인 없이 열기’가 필요할 수 있습니다.\n\nhttps://github.com/CQMHV/ALCOMD3/releases/tag/v2.1.2",
+    "zh_hans": "新增 Windows x64、Apple Silicon macOS 和 Linux x64 稳定版软件包，以及适用于 Windows、macOS 和 AppImage 的已签名更新。Linux 软件包处理现在会保留 dpkg diversion 所有权。macOS 版经过 ad-hoc 签名但未经 Apple 公证，首次启动时可能需要选择“仍要打开”。\n\nhttps://github.com/CQMHV/ALCOMD3/releases/tag/v2.1.2",
+    "zh_hant": "新增 Windows x64、Apple Silicon macOS 和 Linux x64 穩定版軟體包，以及適用於 Windows、macOS 和 AppImage 的已簽署更新。Linux 軟體包處理現在會保留 dpkg diversion 所有權。macOS 版經過 ad-hoc 簽署但未經 Apple 公證，首次啟動時可能需要選擇「仍要打開」。\n\nhttps://github.com/CQMHV/ALCOMD3/releases/tag/v2.1.2"
+  },
+  "pub_date": "2026-07-16T09:48:41Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIEFMQ09NRDMgdXBkYXRlciBrZXkKUlVTd0JJVHZnNHp2M1kvbHdpT1pNYWtoNlNFWlZBWlhZb2Z6WXlwLzFoRG81TjVJTEdCZjR0eEQzS3pQTFhhWU9GQjRiRWlNdmgvN1UwSWcrQXBtV2ViOUt6cWZ3YmtnS0FzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0MTk1MTQ4CWZpbGU6QUxDT01EM18yLjEuMl93aW5kb3dzX3g4Nl82NF9zZXR1cC5leGUJcHVycG9zZTpyZWxlYXNlCmx5K2xBNEFlVUlZZ2lJRlZpVDgzOUdsc1Ezd1VYa1Q4enpIckpEYTZnZng2MW1LaWoxQ003WTdCeXFsNkJyTkV2azNNdmdBcG5WZnhCQlNVZndRckJ3PT0K",
+      "url": "https://github.com/CQMHV/ALCOMD3/releases/download/v2.1.2/ALCOMD3_2.1.2_windows_x86_64_setup.exe",
+      "args": [
+        "/SP-",
+        "/SILENT",
+        "/NOICONS",
+        "!peruser:/CURRENTUSER",
+        "!machine:/ALLUSERS"
+      ]
+    },
+    "darwin-aarch64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIEFMQ09NRDMgdXBkYXRlciBrZXkKUlVTd0JJVHZnNHp2M1RlandzRFI1cmtPWEFtSVFHbmlWK1VvOVZBWkM1aXV6K3FSZStqdnFGSUdHMitmanFxZ0hJQXJaRWRQVFNXcFBZa2V5bDJzUmV0SmQrS0prTUx0Z1FJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0MTk1MTU0CWZpbGU6QUxDT01EM18yLjEuMl9tYWNvc19hYXJjaDY0LmFwcC50YXIuZ3oJcHVycG9zZTpyZWxlYXNlCm50YzJPNDNNNmc2M2RIcFJNbzN6aVdDWnNZY3J4TnVmN0Z5NVlDc3h0bnhXQ3J6aUlHS3FwaUNjeVcyN3hiUEZONXdHM2NWVUZMcEFKNjR6U0tOaEFBPT0K",
+      "url": "https://github.com/CQMHV/ALCOMD3/releases/download/v2.1.2/ALCOMD3_2.1.2_macos_aarch64.app.tar.gz",
+      "args": []
+    },
+    "linux-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIEFMQ09NRDMgdXBkYXRlciBrZXkKUlVTd0JJVHZnNHp2M1JkWldEbVBOdktYSUZGY2FRWU54QWFGNkJnZkM4VnE5dEFTNVhTaXBtRnZkenpRTThUSmpHQmRxMjliRklrWmNybGZKS0NsUzd5Q0hmeElMSFR2MlFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0MTk1MTYwCWZpbGU6QUxDT01EM18yLjEuMl9saW51eF94ODZfNjQuQXBwSW1hZ2UudGFyLmd6CXB1cnBvc2U6cmVsZWFzZQoyZEtLZHBvN2FxdWs5RlgydmxVZ3ExT2ptNkp5R2FRMFVHL25TTVV3Vm1ackxRM3JFYWNqREJseE9IZ1VxdWVzcFN1TGJRbTVTbFF5aU9hUFU1SUZBQT09Cg==",
+      "url": "https://github.com/CQMHV/ALCOMD3/releases/download/v2.1.2/ALCOMD3_2.1.2_linux_x86_64.AppImage.tar.gz",
+      "args": []
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+    "name": "alcomd3-website",
+    "version": "2.2.0-beta.6",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "contributors:sync": "node ../scripts/sync-contributors.mjs",
+        "dev": "npm run contributors:sync && node scripts/generate-beer-theme.mjs && astro dev",
+        "build": "npm run contributors:sync && node scripts/generate-beer-theme.mjs && astro build",
+        "check": "node scripts/generate-beer-theme.mjs && astro check",
+        "preview": "astro preview",
+        "test": "npm run test:unit && npm run build && npm run test:e2e",
+        "test:unit": "node --test tests/unit/downloads.test.mjs tests/unit/contributors.test.mjs",
+        "test:e2e": "playwright test"
+    },
+    "dependencies": {
+        "@astrojs/sitemap": "^3.7.3",
+        "@fontsource/noto-sans": "^5.2.10",
+        "@fontsource/noto-sans-jp": "^5.2.9",
+        "@fontsource/noto-sans-sc": "^5.2.9",
+        "@fontsource/noto-sans-tc": "^5.2.9",
+        "@material/material-color-utilities": "^0.3.0",
+        "astro": "^7.0.7",
+        "beercss": "^4.0.21"
+    },
+    "devDependencies": {
+        "@astrojs/check": "^0.9.4",
+        "@playwright/test": "^1.61.1",
+        "typescript": "^6.0.3"
+    }
+}

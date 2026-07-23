@@ -1,0 +1,1074 @@
+"use client";
+
+import {
+	type CollisionDetection,
+	closestCenter,
+	DndContext,
+	type DragEndEvent,
+	type DragOverEvent,
+	DragOverlay,
+	type DragStartEvent,
+	defaultDropAnimation,
+	defaultDropAnimationSideEffects,
+	type Modifier,
+	PointerSensor,
+	useSensor,
+	useSensors,
+} from "@dnd-kit/core";
+import {
+	arrayMove,
+	SortableContext,
+	useSortable,
+	verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import {
+	queryOptions,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import {
+	ArrowUpDown,
+	ChevronDown,
+	CircleX,
+	GripVertical,
+	Package,
+} from "lucide-react";
+import {
+	Suspense,
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import { HNavBar, VStack } from "@/components/layout";
+import { ScrollableCardTable } from "@/components/ScrollableCardTable";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DialogFooter, DialogTitle } from "@/components/ui/dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
+import type {
+	TauriBasePackageInfo,
+	TauriDefaultRepository,
+	TauriUserRepository,
+} from "@/lib/bindings";
+import { commands } from "@/lib/bindings";
+import { type DialogContext, openSingleDialog } from "@/lib/dialog";
+import { tc, tt } from "@/lib/i18n";
+import { usePrevPathName } from "@/lib/prev-page";
+import { toastThrownError } from "@/lib/toast";
+import { useTauriListen } from "@/lib/use-tauri-listen";
+import { cn } from "@/lib/utils";
+import { HeadingPageName } from "../-tab-selector";
+import { RepositoryPackageList } from "./-repository-package-list";
+import { addRepository, openAddRepositoryDialog } from "./-use-add-repository";
+import { importRepositories } from "./-use-import-repositories";
+
+export const Route = createFileRoute("/_main/packages/repositories/")({
+	component: Page,
+});
+
+type UserRepoWithListId = TauriUserRepository & { listId: string };
+
+function Page() {
+	return (
+		<Suspense>
+			<PageBody />
+		</Suspense>
+	);
+}
+
+const restrictToVerticalAxis: Modifier = ({ transform }) => ({
+	...transform,
+	x: 0,
+});
+
+const DRAG_OVERLAY_MODIFIERS = [restrictToVerticalAxis];
+
+const customDropAnimation: typeof defaultDropAnimation = {
+	...defaultDropAnimation,
+	sideEffects: defaultDropAnimationSideEffects({
+		styles: {
+			active: { opacity: "0" },
+		},
+	}),
+};
+
+const TABLE_HEAD = [
+	"", // visibility checkbox or sorting handle
+	"general:name",
+	"vpm repositories:url",
+	"", // actions
+] as const;
+
+const environmentRepositoriesInfo = queryOptions({
+	queryKey: ["environmentRepositoriesInfo"],
+	queryFn: commands.environmentRepositoriesInfo,
+});
+
+const environmentRepositoryPackageLists = queryOptions({
+	queryKey: ["environmentRepositoryPackageLists"],
+	queryFn: commands.environmentRepositoryPackageLists,
+});
+
+const environmentDefaultRepositories = queryOptions({
+	queryKey: ["environmentDefaultRepositories"],
+	queryFn: commands.environmentDefaultRepositories,
+});
+
+// Scrolls the given viewport element when the pointer is near the top or bottom
+// edge during drag. dnd-kit's built-in autoscroll is disabled because it causes
+// jitter with Radix UI ScrollArea (wrong container detection + double-smoothing).
+function useDragAutoScroll(
+	viewportRef: React.RefObject<HTMLElement | null>,
+	isActive: boolean,
+): void {
+	useEffect(() => {
+		if (!isActive) return;
+
+		const THRESHOLD = 80; // px from edge to begin scrolling
+		const MAX_SPEED = 15; // px/frame at the very edge
+
+		let pointerY = 0;
+		const onPointerMove = (e: PointerEvent) => {
+			pointerY = e.clientY;
+		};
+		window.addEventListener("pointermove", onPointerMove, { passive: true });
+
+		let rafId: number;
+		const tick = () => {
+			const viewport = viewportRef.current;
+			if (viewport) {
+				const { top, bottom } = viewport.getBoundingClientRect();
+				const distFromTop = pointerY - top;
+				const distFromBottom = bottom - pointerY;
+
+				let delta = 0;
+				if (distFromTop >= 0 && distFromTop < THRESHOLD) {
+					delta = -MAX_SPEED * (1 - distFromTop / THRESHOLD);
+				} else if (distFromBottom >= 0 && distFromBottom < THRESHOLD) {
+					delta = MAX_SPEED * (1 - distFromBottom / THRESHOLD);
+				}
+
+				if (delta !== 0) {
+					viewport.scrollTo({
+						top: viewport.scrollTop + delta,
+						behavior: "instant",
+					});
+				}
+			}
+			rafId = requestAnimationFrame(tick);
+		};
+		rafId = requestAnimationFrame(tick);
+
+		return () => {
+			window.removeEventListener("pointermove", onPointerMove);
+			cancelAnimationFrame(rafId);
+		};
+	}, [isActive, viewportRef]);
+}
+
+function computeSlotKey(repo: TauriUserRepository, used: Set<string>): string {
+	const base = `${repo.id} ${repo.url ?? ""}`;
+	let key = base;
+	let counter = 0;
+	while (used.has(key)) {
+		counter++;
+		key = `${base} ${counter}`;
+	}
+	used.add(key);
+	return key;
+}
+
+function PageBody() {
+	const result = useQuery(environmentRepositoriesInfo);
+	const packageListsResult = useQuery(environmentRepositoryPackageLists);
+	const defaultRepositoriesResult = useQuery(environmentDefaultRepositories);
+
+	const exportRepositories = useMutation({
+		mutationFn: async () => await commands.environmentExportRepositories(),
+		onError: (e) => {
+			console.error(e);
+			toastThrownError(e);
+		},
+	});
+
+	const importRepositoriesMutation = useMutation({
+		mutationFn: async () => await importRepositories(),
+		onError: (e) => {
+			console.error(e);
+			toastThrownError(e);
+		},
+	});
+
+	const processDeepLink = useCallback(async function processDeepLink() {
+		try {
+			const data = await commands.deepLinkTakeAddRepository();
+			if (data == null) return;
+			await addRepository(data.url, data.headers);
+		} catch (e) {
+			console.error(e);
+			toastThrownError(e);
+		}
+	}, []);
+
+	const addRepositoryMutation = useMutation({
+		mutationFn: async () => await openAddRepositoryDialog(),
+		onError: (e) => {
+			console.error(e);
+			toastThrownError(e);
+		},
+	});
+
+	const hiddenUserRepos = useMemo(
+		() => new Set(result.data?.hidden_user_repositories),
+		[result.data?.hidden_user_repositories],
+	);
+	const packagesByRepo = useMemo(() => {
+		const map = new Map<string, TauriBasePackageInfo[]>();
+
+		for (const list of packageListsResult.data ?? []) {
+			map.set(list.repository_id, list.packages);
+		}
+
+		return map;
+	}, [packageListsResult.data]);
+
+	useTauriListen<null>("deep-link-add-repository", (_) => {
+		void processDeepLink();
+	});
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: we want to do on mount
+	useEffect(() => {
+		void processDeepLink();
+		// Only for initial load
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	const guiAnimation = useQuery({
+		queryKey: ["environmentGuiAnimation"],
+		queryFn: commands.environmentGuiAnimation,
+		initialData: true,
+	}).data;
+
+	const userRepos = result.data?.user_repositories;
+
+	const listIdMapRef = useRef<Map<string, string>>(new Map());
+
+	const augmentedUserRepos = useMemo<UserRepoWithListId[]>(() => {
+		if (!userRepos) {
+			listIdMapRef.current = new Map();
+			return [];
+		}
+		const prev = listIdMapRef.current;
+		const next = new Map<string, string>();
+		const usedKeys = new Set<string>();
+		const result: UserRepoWithListId[] = [];
+
+		for (const r of userRepos) {
+			const key = computeSlotKey(r, usedKeys);
+			const listId = prev.get(key) ?? crypto.randomUUID();
+			next.set(key, listId);
+			result.push({ ...r, listId });
+		}
+
+		listIdMapRef.current = next;
+		return result;
+	}, [userRepos]);
+
+	const [orderedListIds, setOrderedListIds] = useState<string[]>(() =>
+		augmentedUserRepos.map((r) => r.listId),
+	);
+
+	useEffect(() => {
+		setOrderedListIds(augmentedUserRepos.map((r) => r.listId));
+	}, [augmentedUserRepos]);
+
+	const userRepoByListId = useMemo(
+		() => new Map(augmentedUserRepos.map((r) => [r.listId, r])),
+		[augmentedUserRepos],
+	);
+
+	const userRepoByListIdRef =
+		useRef<Map<string, UserRepoWithListId>>(userRepoByListId);
+	useEffect(() => {
+		userRepoByListIdRef.current = userRepoByListId;
+	}, [userRepoByListId]);
+
+	const [activeId, setActiveId] = useState<string | null>(null);
+	const [overId, setOverId] = useState<string | null>(null);
+	const [isSortingMode, setIsSortingMode] = useState(false);
+	const [columnWidths, setColumnWidths] = useState<number[]>([]);
+	const theadRowRef = useRef<HTMLTableRowElement>(null);
+	const scrollViewportRef = useRef<HTMLDivElement>(null);
+
+	const sensors = useSensors(useSensor(PointerSensor));
+
+	const orderedListIdsSet = useMemo(
+		() => new Set(orderedListIds),
+		[orderedListIds],
+	);
+
+	const collisionDetection = useCallback<CollisionDetection>(
+		(args) =>
+			closestCenter({
+				...args,
+				droppableContainers: args.droppableContainers.filter((c) =>
+					orderedListIdsSet.has(c.id as string),
+				),
+			}),
+		[orderedListIdsSet],
+	);
+
+	const queryClient = useQueryClient();
+	const reorderMutation = useMutation({
+		mutationFn: (listIds: string[]) => {
+			const repos = listIds
+				.map((lid) => userRepoByListId.get(lid))
+				.filter((r): r is UserRepoWithListId => r !== undefined)
+				.map((r) => ({ index: r.index, id: r.id }));
+			return commands.environmentReorderRepositories(repos);
+		},
+		// Pin listIds to the new positions so duplicate-keyed rows don't swap their listIds on refetch.
+		onMutate: (newListIds: string[]) => {
+			const prevMap = new Map(listIdMapRef.current);
+			const rebuilt = new Map<string, string>();
+			const usedKeys = new Set<string>();
+			for (const lid of newListIds) {
+				const repo = userRepoByListIdRef.current.get(lid);
+				if (!repo) continue;
+				const key = computeSlotKey(repo, usedKeys);
+				rebuilt.set(key, lid);
+			}
+			listIdMapRef.current = rebuilt;
+			return { prevMap };
+		},
+		onSettled: () => queryClient.invalidateQueries(environmentRepositoriesInfo),
+		onError: (e, _newListIds, ctx) => {
+			if (ctx?.prevMap) listIdMapRef.current = ctx.prevMap;
+			toastThrownError(e);
+		},
+	});
+
+	const setHideRepository = useMutation({
+		mutationFn: async ({ id, shown }: { id: string; shown: boolean }) => {
+			if (shown) {
+				await commands.environmentShowRepository(id);
+			} else {
+				await commands.environmentHideRepository(id);
+			}
+		},
+		onMutate: async ({ id, shown }: { id: string; shown: boolean }) => {
+			await queryClient.cancelQueries(environmentRepositoriesInfo);
+			const data = queryClient.getQueryData(
+				environmentRepositoriesInfo.queryKey,
+			);
+			if (data !== undefined) {
+				let hidden_user_repositories: string[];
+				if (shown) {
+					if (data.hidden_user_repositories.includes(id)) {
+						hidden_user_repositories = data.hidden_user_repositories;
+					} else {
+						hidden_user_repositories = [...data.hidden_user_repositories, id];
+					}
+				} else {
+					hidden_user_repositories = data.hidden_user_repositories.filter(
+						(x) => x !== id,
+					);
+				}
+
+				queryClient.setQueryData(environmentRepositoriesInfo.queryKey, {
+					...data,
+					hidden_user_repositories,
+				});
+			}
+			return data;
+		},
+		onError: (e, _, ctx) => {
+			reportError(e);
+			console.error(e);
+			queryClient.setQueryData(environmentRepositoriesInfo.queryKey, ctx);
+		},
+		onSettled: async () => {
+			await queryClient.invalidateQueries(environmentRepositoriesInfo);
+		},
+	});
+
+	const defaultRepositoryCount = defaultRepositoriesResult.data?.length ?? 0;
+	const activeVisualIndex = useMemo(() => {
+		if (!activeId) return 0;
+		const effectiveId = overId ?? activeId;
+		const activeListIndex = orderedListIds.indexOf(effectiveId);
+		return (
+			(activeListIndex === -1 ? 0 : activeListIndex) + defaultRepositoryCount
+		);
+	}, [activeId, defaultRepositoryCount, overId, orderedListIds]);
+
+	function handleDragStart(event: DragStartEvent) {
+		setActiveId(event.active.id as string);
+		if (theadRowRef.current) {
+			const widths = Array.from(
+				theadRowRef.current.querySelectorAll("th"),
+				(th) => th.getBoundingClientRect().width,
+			);
+			setColumnWidths(widths);
+		}
+	}
+
+	function handleDragOver(event: DragOverEvent) {
+		setOverId((event.over?.id as string | null) ?? null);
+	}
+
+	function handleDragEnd(event: DragEndEvent) {
+		setActiveId(null);
+		setOverId(null);
+		const { active, over } = event;
+		if (over && active.id !== over.id) {
+			const oldIndex = orderedListIds.indexOf(active.id as string);
+			const newIndex = orderedListIds.indexOf(over.id as string);
+			const newListIds = arrayMove(orderedListIds, oldIndex, newIndex);
+			setOrderedListIds(newListIds);
+		}
+	}
+
+	function handleDragCancel() {
+		setActiveId(null);
+		setOverId(null);
+	}
+
+	function handleToggleSortingMode() {
+		if (!isSortingMode) {
+			setOrderedListIds(augmentedUserRepos.map((repo) => repo.listId));
+			setIsSortingMode(true);
+			return;
+		}
+
+		setIsSortingMode(false);
+		const persistedListIds = augmentedUserRepos.map((repo) => repo.listId);
+		const hasChanges =
+			orderedListIds.length !== persistedListIds.length ||
+			orderedListIds.some(
+				(listId, index) => listId !== persistedListIds[index],
+			);
+		if (hasChanges) reorderMutation.mutate(orderedListIds);
+	}
+
+	useDragAutoScroll(scrollViewportRef, activeId !== null);
+
+	const bodyAnimation = usePrevPathName().startsWith("/packages")
+		? "slide-right"
+		: "";
+
+	return (
+		<DndContext
+			sensors={sensors}
+			collisionDetection={collisionDetection}
+			autoScroll={false}
+			onDragStart={handleDragStart}
+			onDragOver={handleDragOver}
+			onDragEnd={handleDragEnd}
+			onDragCancel={handleDragCancel}
+		>
+			<VStack>
+				<div style={activeId !== null ? { pointerEvents: "none" } : undefined}>
+					<HNavBar
+						className="shrink-0"
+						leading={<HeadingPageName pageType={"/packages/repositories"} />}
+						trailing={
+							<div className="flex items-center gap-2">
+								<Button
+									variant={isSortingMode ? "emphasis" : "secondary"}
+									aria-pressed={isSortingMode}
+									disabled={reorderMutation.isPending}
+									onClick={handleToggleSortingMode}
+								>
+									<ArrowUpDown className="mr-2 size-4" />
+									{tc(
+										isSortingMode
+											? "vpm repositories:button:finish sorting"
+											: "vpm repositories:button:sort repositories",
+									)}
+								</Button>
+								<DropdownMenu>
+									<div className={"flex divide-x"}>
+										<Button
+											className={"rounded-r-none compact:h-10"}
+											onClick={() => addRepositoryMutation.mutate()}
+										>
+											{tc("vpm repositories:button:add repository")}
+										</Button>
+										<DropdownMenuTrigger
+											asChild
+											className={"rounded-l-none pl-2 pr-2 compact:h-10"}
+										>
+											<Button>
+												<ChevronDown className={"w-4 h-4"} />
+											</Button>
+										</DropdownMenuTrigger>
+									</div>
+									<DropdownMenuContent>
+										<DropdownMenuItem
+											onClick={() => importRepositoriesMutation.mutate()}
+										>
+											{tc("vpm repositories:button:import repositories")}
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onClick={() => exportRepositories.mutate()}
+										>
+											{tc("vpm repositories:button:export repositories")}
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
+							</div>
+						}
+					/>
+				</div>
+				<main
+					className={`shrink overflow-hidden flex w-full h-full ${bodyAnimation}`}
+				>
+					<ScrollableCardTable
+						className={"h-full w-full"}
+						viewportRef={scrollViewportRef}
+					>
+						<RepositoryTableBody
+							orderedListIds={orderedListIds}
+							userRepoByListId={userRepoByListId}
+							hiddenUserRepos={hiddenUserRepos}
+							defaultRepositories={defaultRepositoriesResult.data ?? []}
+							packagesByRepo={packagesByRepo}
+							theadRowRef={theadRowRef}
+							guiAnimation={guiAnimation}
+							onToggleVisibility={(id, shown) =>
+								setHideRepository.mutate({ id, shown })
+							}
+							isSortingMode={isSortingMode}
+							isDragActive={activeId !== null}
+						/>
+					</ScrollableCardTable>
+				</main>
+			</VStack>
+			<DragOverlay
+				modifiers={DRAG_OVERLAY_MODIFIERS}
+				dropAnimation={guiAnimation ? customDropAnimation : null}
+			>
+				{activeId ? (
+					<RepositoryDragOverlay
+						repo={userRepoByListId.get(activeId)}
+						repoPackages={
+							packagesByRepo.get(userRepoByListId.get(activeId)?.id ?? "") ?? []
+						}
+						selected={
+							!hiddenUserRepos.has(userRepoByListId.get(activeId)?.id ?? "")
+						}
+						columnWidths={columnWidths}
+						visualIndex={activeVisualIndex}
+						guiAnimation={guiAnimation}
+					/>
+				) : null}
+			</DragOverlay>
+		</DndContext>
+	);
+}
+
+function RepositoryTableBody({
+	orderedListIds,
+	userRepoByListId,
+	hiddenUserRepos,
+	defaultRepositories,
+	packagesByRepo,
+	theadRowRef,
+	guiAnimation,
+	onToggleVisibility,
+	isSortingMode,
+	isDragActive,
+}: {
+	orderedListIds: string[];
+	userRepoByListId: Map<string, UserRepoWithListId>;
+	hiddenUserRepos: Set<string>;
+	defaultRepositories: TauriDefaultRepository[];
+	packagesByRepo: Map<string, TauriBasePackageInfo[]>;
+	theadRowRef: React.RefObject<HTMLTableRowElement | null>;
+	guiAnimation: boolean;
+	onToggleVisibility: (id: string, shown: boolean) => void;
+	isSortingMode: boolean;
+	isDragActive: boolean;
+}) {
+	return (
+		<>
+			<thead>
+				<tr ref={theadRowRef}>
+					{TABLE_HEAD.map((head, index) => (
+						<th
+							// biome-ignore lint/suspicious/noArrayIndexKey: static array
+							key={index}
+							className={
+								"sticky top-0 z-10 border-b border-primary bg-secondary text-secondary-foreground px-2.5 py-1.5"
+							}
+						>
+							<small className="font-normal leading-none">{tc(head)}</small>
+						</th>
+					))}
+				</tr>
+			</thead>
+			<tbody>
+				{defaultRepositories.map((repository, index) => (
+					<RepositoryRow
+						key={repository.kind}
+						repoId={repository.id}
+						url={repository.url}
+						displayName={defaultRepositoryDisplayName(repository)}
+						hiddenUserRepos={hiddenUserRepos}
+						repoPackages={packagesByRepo.get(repository.id) ?? []}
+						className={
+							index === defaultRepositories.length - 1
+								? "border-b border-primary/10"
+								: undefined
+						}
+						canRemove={false}
+						rowIndex={index}
+						guiAnimation={guiAnimation}
+						onToggleVisibility={onToggleVisibility}
+						isSortingMode={isSortingMode}
+						isDragActive={isDragActive}
+					/>
+				))}
+				<SortableContext
+					items={orderedListIds}
+					strategy={verticalListSortingStrategy}
+				>
+					{orderedListIds.map((listId, index) => {
+						const repo = userRepoByListId.get(listId);
+						if (!repo) return null;
+						return (
+							<RepositoryRow
+								key={listId}
+								listId={listId}
+								repoId={repo.id}
+								repoIndex={repo.index}
+								displayName={repo.display_name}
+								url={repo.url}
+								hiddenUserRepos={hiddenUserRepos}
+								repoPackages={packagesByRepo.get(repo.id) ?? []}
+								rowIndex={defaultRepositories.length + index}
+								guiAnimation={guiAnimation}
+								onToggleVisibility={onToggleVisibility}
+								isSortingMode={isSortingMode}
+								isDragActive={isDragActive}
+							/>
+						);
+					})}
+				</SortableContext>
+			</tbody>
+		</>
+	);
+}
+
+function defaultRepositoryDisplayName(
+	repository: TauriDefaultRepository,
+): string {
+	switch (repository.kind) {
+		case "officialDefault":
+			return tt("vpm repositories:source:official");
+		case "curatedDefault":
+			return tt("vpm repositories:source:curated");
+		default:
+			return repository.id;
+	}
+}
+
+const CELL_CLASS = "p-2.5 compact:py-1 align-middle";
+
+function RepositoryRowCells({
+	labelId,
+	displayName,
+	url,
+	canRemove,
+	selected,
+	onCheckedChange,
+	onRemove,
+	repoPackages,
+	isSortingMode,
+	dragListeners,
+	dragAttributes,
+	dragActivatorRef,
+}: {
+	labelId?: string;
+	displayName: string;
+	url: string | null | undefined;
+	canRemove: boolean;
+	selected: boolean;
+	onCheckedChange?: (shown: boolean) => void;
+	onRemove?: () => void;
+	repoPackages?: TauriBasePackageInfo[];
+	isSortingMode: boolean;
+	dragListeners?: ReturnType<typeof useSortable>["listeners"];
+	dragAttributes?: ReturnType<typeof useSortable>["attributes"];
+	dragActivatorRef?: ReturnType<typeof useSortable>["setActivatorNodeRef"];
+}) {
+	const isLiveRow = onCheckedChange !== undefined;
+	const visibilityInteractive = !isSortingMode && isLiveRow;
+	return (
+		<>
+			<td className={`${CELL_CLASS} w-0`}>
+				{isSortingMode ? (
+					<div className="flex">
+						<span
+							ref={canRemove ? dragActivatorRef : undefined}
+							className={cn(
+								"flex size-5 touch-none items-center justify-center",
+								canRemove
+									? "cursor-grab active:cursor-grabbing"
+									: "cursor-not-allowed",
+							)}
+							{...(canRemove ? dragListeners : undefined)}
+							{...(canRemove ? dragAttributes : undefined)}
+						>
+							<GripVertical
+								className={cn(
+									"size-5 text-muted-foreground",
+									!canRemove && "opacity-50",
+								)}
+							/>
+						</span>
+					</div>
+				) : visibilityInteractive ? (
+					<div className="flex">
+						<Checkbox
+							id={labelId}
+							checked={selected}
+							onCheckedChange={(x) => onCheckedChange(x === true)}
+						/>
+					</div>
+				) : (
+					<div className="pointer-events-none flex">
+						<Checkbox checked={selected} />
+					</div>
+				)}
+			</td>
+			<td className={CELL_CLASS}>
+				{visibilityInteractive ? (
+					<label htmlFor={labelId}>
+						<p className="font-normal">{displayName}</p>
+					</label>
+				) : (
+					<p className="font-normal">{displayName}</p>
+				)}
+			</td>
+			<td className={CELL_CLASS}>
+				<p className="font-normal">{url}</p>
+			</td>
+			<td className={`${CELL_CLASS} w-0`}>
+				<div className="flex items-center gap-1">
+					{repoPackages !== undefined && (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									disabled={!isLiveRow}
+									onClick={() => {
+										void openSingleDialog(RepositoryPackagesDialog, {
+											displayName,
+											packages: repoPackages,
+										});
+									}}
+									variant={"ghost"}
+									size={"icon"}
+								>
+									<Package className={"size-5"} />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>
+								{tc("vpm repositories:tooltip:view packages")}
+							</TooltipContent>
+						</Tooltip>
+					)}
+					{isLiveRow ? (
+						<Tooltip>
+							<TooltipTrigger asChild={canRemove}>
+								<Button
+									disabled={!canRemove}
+									onClick={onRemove}
+									variant={"ghost"}
+									size={"icon"}
+								>
+									<CircleX className={"size-5 text-destructive"} />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>
+								{canRemove
+									? tc("vpm repositories:remove repository")
+									: tc(
+											"vpm repositories:tooltip:remove curated or official repository",
+										)}
+							</TooltipContent>
+						</Tooltip>
+					) : (
+						<Button variant={"ghost"} size={"icon"} disabled>
+							<CircleX className={"size-5 text-destructive"} />
+						</Button>
+					)}
+				</div>
+			</td>
+		</>
+	);
+}
+
+function RepositoryRow({
+	listId,
+	repoId,
+	repoIndex,
+	displayName,
+	url,
+	repoPackages,
+	hiddenUserRepos,
+	className,
+	canRemove = true,
+	rowIndex,
+	guiAnimation,
+	onToggleVisibility,
+	isSortingMode,
+	isDragActive,
+}: {
+	listId?: string;
+	repoId: TauriUserRepository["id"];
+	repoIndex?: number;
+	displayName: TauriUserRepository["display_name"];
+	url: TauriUserRepository["url"];
+	repoPackages?: TauriBasePackageInfo[];
+	hiddenUserRepos: Set<string>;
+	className?: string;
+	canRemove?: boolean;
+	rowIndex: number;
+	guiAnimation: boolean;
+	onToggleVisibility: (id: string, shown: boolean) => void;
+	isSortingMode: boolean;
+	isDragActive: boolean;
+}) {
+	const labelId = useId();
+
+	const {
+		attributes,
+		listeners,
+		setNodeRef,
+		setActivatorNodeRef,
+		transform,
+		transition,
+		isDragging,
+	} = useSortable({
+		id: listId ?? repoId,
+		disabled: !isSortingMode || !canRemove,
+	});
+
+	const visualIndex = useMemo(() => {
+		if (isDragging) return rowIndex;
+		const dy = transform?.y ?? 0;
+		if (dy < 0) return rowIndex - 1;
+		if (dy > 0) return rowIndex + 1;
+		return rowIndex;
+	}, [rowIndex, transform?.y, isDragging]);
+
+	const dragStyle = useMemo<React.CSSProperties>(
+		() => ({
+			transform: transform ? `translateY(${transform.y}px)` : undefined,
+			transition: guiAnimation
+				? [transition, isDragActive ? undefined : "background-color 200ms ease"]
+						.filter(Boolean)
+						.join(", ") || undefined
+				: undefined,
+			opacity: isDragging ? 0 : 1,
+			position: "relative",
+		}),
+		[transform, transition, isDragging, guiAnimation, isDragActive],
+	);
+
+	const selected = !hiddenUserRepos.has(repoId);
+
+	return (
+		<tr
+			ref={setNodeRef}
+			style={dragStyle}
+			className={cn(visualIndex % 2 === 1 ? "bg-secondary/30" : "", className)}
+		>
+			<RepositoryRowCells
+				labelId={labelId}
+				displayName={displayName}
+				url={url}
+				canRemove={canRemove}
+				selected={selected}
+				repoPackages={repoPackages}
+				onCheckedChange={(shown) => onToggleVisibility(repoId, shown)}
+				onRemove={() =>
+					void openSingleDialog(RemoveRepositoryDialog, {
+						displayName,
+						index: repoIndex ?? 0,
+						id: repoId,
+					})
+				}
+				isSortingMode={isSortingMode}
+				dragListeners={listeners}
+				dragAttributes={attributes}
+				dragActivatorRef={setActivatorNodeRef}
+			/>
+		</tr>
+	);
+}
+
+function RepositoryDragOverlay({
+	repo,
+	repoPackages,
+	selected,
+	columnWidths,
+	visualIndex,
+	guiAnimation,
+}: {
+	repo: TauriUserRepository | undefined;
+	repoPackages: TauriBasePackageInfo[];
+	selected: boolean;
+	columnWidths: number[];
+	visualIndex: number;
+	guiAnimation: boolean;
+}) {
+	const style = useMemo<React.CSSProperties>(
+		() => ({
+			transition: guiAnimation ? "background-color 200ms ease" : undefined,
+		}),
+		[guiAnimation],
+	);
+
+	if (!repo) return null;
+	return (
+		<table
+			className={cn(
+				"w-full table-fixed text-left",
+				visualIndex % 2 === 1 ? "bg-secondary/30" : "",
+			)}
+			style={style}
+		>
+			{columnWidths.length > 0 && (
+				<colgroup>
+					{columnWidths.map((w, i) => (
+						// biome-ignore lint/suspicious/noArrayIndexKey: fixed column order
+						<col key={i} style={{ width: w }} />
+					))}
+				</colgroup>
+			)}
+			<tbody>
+				<tr>
+					<RepositoryRowCells
+						displayName={repo.display_name}
+						url={repo.url}
+						canRemove={true}
+						selected={selected}
+						repoPackages={repoPackages}
+						isSortingMode={true}
+					/>
+				</tr>
+			</tbody>
+		</table>
+	);
+}
+
+function RepositoryPackagesDialog({
+	dialog,
+	displayName,
+	packages,
+}: {
+	dialog: DialogContext<void>;
+	displayName: string;
+	packages: TauriBasePackageInfo[];
+}) {
+	return (
+		<>
+			<DialogTitle>{displayName}</DialogTitle>
+			<div className={"max-h-[50vh] overflow-y-auto font-normal"}>
+				<p className={"font-normal"}>
+					{tc("vpm repositories:dialog:packages")}
+				</p>
+				<RepositoryPackageList packages={packages} />
+			</div>
+			<DialogFooter>
+				<Button onClick={() => dialog.close()}>
+					{tc("general:button:close")}
+				</Button>
+			</DialogFooter>
+		</>
+	);
+}
+
+function RemoveRepositoryDialog({
+	dialog,
+	displayName,
+	index,
+	id,
+}: {
+	dialog: DialogContext<void>;
+	displayName: string;
+	index: number;
+	id: string;
+}) {
+	const queryClient = useQueryClient();
+
+	const removeRepository = useMutation({
+		mutationFn: async (args: { index: number; id: string }) =>
+			await commands.environmentRemoveRepository(args.index, args.id),
+		onMutate: async ({ index }) => {
+			await queryClient.cancelQueries(environmentRepositoriesInfo);
+			const data = queryClient.getQueryData(
+				environmentRepositoriesInfo.queryKey,
+			);
+			if (data !== undefined) {
+				queryClient.setQueryData(environmentRepositoriesInfo.queryKey, {
+					...data,
+					user_repositories: data.user_repositories.filter(
+						(x) => x.index !== index,
+					),
+				});
+			}
+			return data;
+		},
+		onError: (e, _args, ctx) => {
+			queryClient.setQueryData(environmentRepositoriesInfo.queryKey, ctx);
+			toastThrownError(e);
+		},
+		onSettled: () => queryClient.invalidateQueries(environmentRepositoriesInfo),
+	});
+
+	return (
+		<>
+			<DialogTitle>{tc("vpm repositories:remove repository")}</DialogTitle>
+			<div>
+				<p className={"whitespace-normal font-normal"}>
+					{tc("vpm repositories:dialog:confirm remove description", {
+						name: displayName,
+					})}
+				</p>
+			</div>
+			<DialogFooter>
+				<Button onClick={() => dialog.close()}>
+					{tc("general:button:cancel")}
+				</Button>
+				<Button
+					onClick={() => {
+						dialog.close();
+						removeRepository.mutate({ index, id });
+					}}
+					className={"ml-2"}
+				>
+					{tc("vpm repositories:remove repository")}
+				</Button>
+			</DialogFooter>
+		</>
+	);
+}

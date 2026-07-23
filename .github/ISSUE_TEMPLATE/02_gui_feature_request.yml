@@ -1,0 +1,32 @@
+name: "[ALCOMD3] Feature Request"
+description: Suggest an idea for ALCOMD3 / ALCOMD3に新しい機能を提案する / 提出 ALCOMD3 功能建议
+labels: [ "enhancement", "vrc-get-gui" ]
+
+body:
+  - type: textarea
+    attributes:
+      label: Summary / 概要 / 概要
+      description: |
+        Please describe the suggestion. If it is related to the UI, some figures should help to image it.
+        どんな提案ですか? UIに関するものであれば、図があると分かりやすいかもしれません。
+        请描述你的建议。如果与 UI 有关，附上图片可能更容易说明。
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Purpose / 目的 / 目的
+      description: |
+        What problems or needs do you think this feature will solve?
+        その機能の追加によって、どんな問題やニーズが解決されそうですか?
+        你认为这个功能会解决什么问题或需求？
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Additional context / 補足 / 补充信息
+      description: |
+        Add any other context about the feature request here.
+        補足したい内容があればここに書いて下さい。
+        如有其他补充信息，请写在这里。

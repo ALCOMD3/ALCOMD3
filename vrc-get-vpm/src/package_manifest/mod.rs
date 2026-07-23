@@ -1,0 +1,460 @@
+mod partial_unity_version;
+mod yank_state;
+
+use crate::utils::DedupForwarder;
+use crate::version::{Version, VersionRange};
+use indexmap::IndexMap;
+use serde::{Deserialize, Deserializer};
+use std::collections::HashMap;
+use url::Url;
+
+use crate::package_manifest::yank_state::YankState;
+pub use partial_unity_version::PartialUnityVersion;
+
+macro_rules! initialize_from_package_json_like {
+    ($source: expr) => {
+        PackageManifest {
+            name: $source.name,
+            version: $source.version,
+            display_name: $source.display_name,
+            description: $source.description,
+            unity: $source.unity,
+            url: $source.url,
+            zip_sha_256: $source.zip_sha_256,
+            vpm_dependencies: $source.vpm_dependencies,
+            legacy_folders: $source.legacy_folders,
+            legacy_files: $source.legacy_files,
+            legacy_packages: $source.legacy_packages,
+            headers: $source.headers,
+            changelog_url: $source.changelog_url,
+            documentation_url: $source.documentation_url,
+            keywords: $source.keywords,
+            vrc_get: VrcGetMeta {
+                yanked: $source.vrc_get.yanked,
+                aliases: $source.vrc_get.aliases,
+            },
+        }
+    };
+}
+
+macro_rules! package_json_struct {
+    {
+        $(#[$meta:meta])*
+        $vis:vis struct $name: ident {
+            $optional_vis:vis optional$(: #[$optional: meta])?;
+            optional_url$(: #[$optional_url: meta])?;
+            $required_vis:vis required$(: #[$required: meta])?;
+        }
+        $(#[$vr_get_meta:meta])*
+        $vrc_get_struct_vis:vis struct $vrc_get_meta_name:ident {
+            $vrc_get_optional_vis:vis optional$(: #[$vrc_get_optional: meta])?;
+        }
+    } => {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        $(#[$meta])*
+        $vis struct $name {
+            $(#[$required])?
+            #[serde(deserialize_with = "deserialize_package_name")]
+            $required_vis name: Box<str>,
+            $(#[$required])?
+            $required_vis version: Version,
+
+            $(#[$optional])?
+            $optional_vis display_name: Option<Box<str>>,
+            $(#[$optional])?
+            $optional_vis description: Option<Box<str>>,
+            $(#[$optional])?
+            $optional_vis unity: Option<PartialUnityVersion>,
+
+            $(#[$optional])?
+            $optional_vis url: Option<Url>,
+            $(#[$optional])?
+            #[serde(rename = "zipSHA256")]
+            $optional_vis zip_sha_256: Option<Box<str>>,
+
+            $(#[$optional])?
+            $optional_vis vpm_dependencies: IndexMap<Box<str>, VersionRange>,
+
+            $(#[$optional])?
+            $optional_vis legacy_folders: HashMap<Box<str>, Option<Box<str>>>,
+            $(#[$optional])?
+            $optional_vis legacy_files: HashMap<Box<str>, Option<Box<str>>>,
+            $(#[$optional])?
+            $optional_vis legacy_packages: Vec<Box<str>>,
+
+            $(#[$optional])?
+            $optional_vis headers: indexmap::IndexMap<Box<str>, Box<str>>,
+
+            $(#[$optional_url])?
+            $optional_vis changelog_url: Option<Url>,
+            $(#[$optional_url])?
+            $optional_vis documentation_url: Option<Url>,
+
+            $(#[$optional])?
+            $optional_vis keywords: Vec<Box<str>>,
+
+            $(#[$optional])?
+            #[serde(rename = "vrc-get")]
+            $optional_vis vrc_get: $vrc_get_meta_name,
+        }
+
+        // Note: please keep in sync with package_manifest
+        $(#[$vr_get_meta])*
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        $vrc_get_struct_vis struct $vrc_get_meta_name {
+            $(#[$vrc_get_optional])?
+            $vrc_get_optional_vis yanked: YankState,
+            /// aliases for `vrc-get i --name <name> <version>` command.
+            $(#[$vrc_get_optional])?
+            $vrc_get_optional_vis aliases: Vec<Box<str>>,
+        }
+    };
+}
+
+fn deserialize_package_name<'de, D>(de: D) -> Result<Box<str>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let name = Box::<str>::deserialize(de)?;
+    if is_valid_package_name(&name) {
+        Ok(name)
+    } else {
+        Err(serde::de::Error::custom(format!(
+            "invalid VPM package name: {name:?}"
+        )))
+    }
+}
+
+/// Returns whether `name` is safe to use as a VPM/Unity package identifier.
+///
+/// This intentionally enforces the common safe character set used by Unity
+/// package names without requiring reverse-domain notation, because existing
+/// VPM repositories can contain compatible package names outside that shape.
+pub fn is_valid_package_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.split('.').all(|part| {
+            !part.is_empty()
+                && part.bytes().all(|byte| {
+                    byte.is_ascii_lowercase()
+                        || byte.is_ascii_digit()
+                        || byte == b'-'
+                        || byte == b'_'
+                })
+        })
+}
+
+fn default_if_none<'de, D, T>(de: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de> + Default,
+{
+    <Option<T>>::deserialize(de).map(|x| x.unwrap_or_default())
+}
+
+fn none_if_none_or_empty<'de, D>(de: D) -> Result<Option<Url>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let str = <Option<String>>::deserialize(de)?;
+    let Some(url) = str.filter(|s| !s.trim().is_empty()) else {
+        return Ok(None);
+    };
+    Ok(Some(Url::parse(&url).map_err(serde::de::Error::custom)?))
+}
+
+package_json_struct! {
+    #[derive(Debug, Clone)]
+    pub struct PackageManifest {
+        optional: #[serde(default, deserialize_with = "default_if_none")];
+        optional_url: #[serde(default, deserialize_with = "none_if_none_or_empty")];
+        required;
+    }
+    #[derive(Debug, Clone, Default)]
+    pub(super) struct VrcGetMeta {
+        optional: #[serde(default)];
+    }
+}
+
+impl PackageManifest {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn version(&self) -> &Version {
+        &self.version
+    }
+    pub fn vpm_dependencies(&self) -> &IndexMap<Box<str>, VersionRange> {
+        &self.vpm_dependencies
+    }
+    pub fn legacy_folders(&self) -> &HashMap<Box<str>, Option<Box<str>>> {
+        &self.legacy_folders
+    }
+
+    pub fn legacy_files(&self) -> &HashMap<Box<str>, Option<Box<str>>> {
+        &self.legacy_files
+    }
+    pub fn headers(&self) -> &IndexMap<Box<str>, Box<str>> {
+        &self.headers
+    }
+
+    pub fn legacy_packages(&self) -> &[Box<str>] {
+        self.legacy_packages.as_slice()
+    }
+    pub fn display_name(&self) -> Option<&str> {
+        self.display_name.as_deref()
+    }
+    pub fn description(&self) -> Option<&str> {
+        self.description.as_deref()
+    }
+    pub fn url(&self) -> Option<&Url> {
+        self.url.as_ref()
+    }
+    pub fn zip_sha_256(&self) -> Option<&str> {
+        self.zip_sha_256.as_deref()
+    }
+    pub fn changelog_url(&self) -> Option<&Url> {
+        self.changelog_url.as_ref()
+    }
+    pub fn documentation_url(&self) -> Option<&Url> {
+        self.documentation_url.as_ref()
+    }
+    pub fn unity(&self) -> Option<&PartialUnityVersion> {
+        self.unity.as_ref()
+    }
+    pub fn is_yanked(&self) -> bool {
+        self.vrc_get.yanked.is_yanked()
+    }
+    // TODO: deprecate aliases on next minor release
+    pub fn aliases(&self) -> &[Box<str>] {
+        self.vrc_get.aliases.as_slice()
+    }
+    pub fn keywords(&self) -> &[Box<str>] {
+        self.keywords.as_slice()
+    }
+}
+
+/// Constructing PackageJson. Especially for testing.
+impl PackageManifest {
+    pub fn new(name: impl Into<Box<str>>, version: Version) -> Self {
+        Self {
+            name: name.into(),
+            version,
+            display_name: None,
+            description: None,
+            vpm_dependencies: IndexMap::new(),
+            url: None,
+            unity: None,
+            legacy_folders: HashMap::new(),
+            legacy_files: HashMap::new(),
+            legacy_packages: Vec::new(),
+            headers: IndexMap::new(),
+            vrc_get: VrcGetMeta::default(),
+            zip_sha_256: None,
+            changelog_url: None,
+            documentation_url: None,
+            keywords: Vec::new(),
+        }
+    }
+
+    pub fn add_vpm_dependency(mut self, name: impl Into<Box<str>>, range: &str) -> Self {
+        self.vpm_dependencies
+            .insert(name.into(), range.parse().unwrap());
+        self
+    }
+
+    pub fn add_legacy_package(mut self, name: impl Into<Box<str>>) -> Self {
+        self.legacy_packages.push(name.into());
+        self
+    }
+
+    pub fn add_legacy_folder(
+        mut self,
+        path: impl Into<Box<str>>,
+        guid: impl Into<Box<str>>,
+    ) -> Self {
+        self.legacy_folders.insert(path.into(), Some(guid.into()));
+        self
+    }
+
+    pub fn add_legacy_file(mut self, path: impl Into<Box<str>>, guid: impl Into<Box<str>>) -> Self {
+        self.legacy_files.insert(path.into(), Some(guid.into()));
+        self
+    }
+}
+
+pub(crate) struct LooseManifest(pub PackageManifest);
+
+impl<'de> Deserialize<'de> for LooseManifest {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        fn default_if_err<'de, D, T>(de: D) -> Result<T, D::Error>
+        where
+            D: Deserializer<'de>,
+            T: Deserialize<'de> + Default,
+        {
+            match T::deserialize(de) {
+                Ok(v) => Ok(v),
+                Err(_) => Ok(T::default()),
+            }
+        }
+
+        package_json_struct! {
+            pub(super) struct LooseManifest {
+                pub(super) optional: #[serde(default, deserialize_with = "default_if_err")];
+                optional_url: #[serde(default, deserialize_with = "default_if_err")];
+                pub(super) required;
+            }
+            #[derive(Default)]
+            pub(super) struct LooseVrcGetMeta {
+                pub(super) optional: #[serde(default, deserialize_with = "default_if_err")];
+            }
+        }
+
+        let strict = LooseManifest::deserialize(DedupForwarder::new(deserializer))?;
+
+        Ok(LooseManifest(initialize_from_package_json_like!(strict)))
+    }
+}
+
+#[test]
+fn rejects_package_names_with_path_components() {
+    for name in [
+        "../evil",
+        "evil/asset",
+        "evil\\asset",
+        ".evil",
+        "evil.",
+        "com..evil",
+        "Com.Example.Package",
+        "com.example.package+meta",
+    ] {
+        let json = serde_json::json!({
+            "name": name,
+            "version": "1.0.0",
+        });
+        assert!(
+            serde_json::from_value::<PackageManifest>(json).is_err(),
+            "package name {name:?} must be rejected"
+        );
+    }
+}
+
+#[test]
+fn loose_manifest_rejects_package_names_with_path_components() {
+    let json = serde_json::json!({
+        "name": "../evil",
+        "version": "1.0.0",
+    });
+    assert!(serde_json::from_value::<LooseManifest>(json).is_err());
+}
+
+#[test]
+fn accepts_vpm_package_names() {
+    for name in [
+        "com.example.package",
+        "vrc-get-vpm",
+        "nadena.dev.modular-avatar",
+        "com.example.package_1",
+    ] {
+        let json = serde_json::json!({
+            "name": name,
+            "version": "1.0.0",
+        });
+        let package = serde_json::from_value::<PackageManifest>(json).unwrap();
+        assert_eq!(package.name(), name);
+    }
+}
+
+#[test]
+fn deserialize_partially_bad() {
+    let json = r#"{
+        "name": "vrc-get-vpm",
+        "version": "0.1.0",
+        "vpmDependencies": {
+            "vrc-get": ">=0.1.0"
+        },
+        "comment": "Thre following is duplicated key url",
+        "legacyPackages": ["vrc-get"],
+        "legacyPackages": ["vrc-2"],
+        "comment": "Thre following is invalid url",
+        "changelog_url": "",
+        "url": "",
+        "vrc-get": {
+            "yanked": false,
+            "aliases": ["vpm"]
+        }
+    }"#;
+    let package_json: LooseManifest = serde_json::from_str(json).unwrap();
+    let package_json = package_json.0;
+    assert_eq!(package_json.name(), "vrc-get-vpm");
+    assert_eq!(package_json.version(), &Version::new(0, 1, 0));
+    assert_eq!(package_json.vpm_dependencies(), &{
+        let mut map = IndexMap::new();
+        map.insert(
+            "vrc-get".into(),
+            VersionRange::same_or_later(Version::new(0, 1, 0)),
+        );
+        map
+    });
+    assert_eq!(package_json.legacy_packages(), &["vrc-get".into()]);
+    assert!(!package_json.is_yanked());
+    assert_eq!(package_json.aliases(), &["vpm".into()]);
+    assert_eq!(package_json.changelog_url(), None);
+}
+
+#[test]
+fn deserialize_null_on_dependencies() {
+    let json = r##"{
+      "name": "com.kibalab.materialmerger",
+      "displayName": "Material Merger",
+      "description": "Unity Editor tool that merges multiple materials/textures into an atlas-based workflow. specifically designed for VRChat world/avatar optimization.",
+      "version": "0.1.0",
+      "unity": "2022.3",
+      "url": "https://github.com/kibalab/material-merger/releases/download/0.1.0/com.kibalab.materialmerger-0.1.0.zip",
+      "author": {
+        "name": "KIBA",
+        "email": "root@kiba.red",
+        "url": "https://vpm.kiba.red"
+      },
+      "dependencies": null,
+      "vpmDependencies": null,
+      "samples": null,
+      "zipSHA256": "0e201b9a1ed9f0e3a9c16b8f765605e8aa0c9aebf9a315c04bc67f6ebe2485f8"
+    }"##;
+    let package_json: PackageManifest = serde_json::from_str(json).unwrap();
+    assert_eq!(package_json.name(), "com.kibalab.materialmerger");
+    assert_eq!(package_json.version(), &Version::new(0, 1, 0));
+    //assert!(package_json.dependencies().is_empty());
+    assert!(package_json.vpm_dependencies().is_empty());
+}
+
+#[test]
+fn deserialize_empty_documentation() {
+    let json = r##"{
+      "name": "net.yarukizero.vrchat.shizuku",
+      "displayName": "Shizuku",
+      "version": "0.0.0",
+      "unity": "2022.3",
+      "description": "スクリプトでいい感じに定義したい",
+      "vpmDependencies": {
+        "nadena.dev.modular-avatar": ">=1.9.10"
+      },
+      "changelogUrl": " ",
+      "author": {
+        "name": "azumyar",
+        "url": "https://github.com/azumyar"
+      },
+      "documentationUrl": "",
+      "license": "MIT",
+      "zipSHA256": "22a143ed75c429a471ffd784102d2fb577c56b010b49439b5930cbb2df820f8b",
+      "url": "https://github.com/azumyar/vrchat-shizuku/releases/download/0.0.0/net.yarukizero.vrchat.shizuku-0.0.0.zip"
+    }"##;
+    let package_json: PackageManifest = serde_json::from_str(json).unwrap();
+    assert_eq!(package_json.name(), "net.yarukizero.vrchat.shizuku");
+    assert_eq!(package_json.version(), &Version::new(0, 0, 0));
+    assert_eq!(package_json.documentation_url(), None);
+    assert_eq!(package_json.changelog_url(), None);
+}

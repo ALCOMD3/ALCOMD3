@@ -1,0 +1,10 @@
+Package: alcomd3
+Version: {{version}}-1
+Architecture: {{arch}}
+Installed-Size: {{estimated_size}}
+Maintainer: anatawa12 <i@anatawa12.com>
+Priority: optional
+Homepage: https://alcomd3.cqmhv.com/
+Depends: libwebkit2gtk-4.1-0, libgtk-3-0, libc6 (>= {{libc_version}}), libgcc-s1 (>= {{libgcc_version}})
+Description: ALCOMD3 - Alternative Creator Companion
+ ALCOMD3 is a fast and open-source alternative VCC (VRChat Creator Companion) written in rust and tauri.

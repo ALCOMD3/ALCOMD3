@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>ALCOMD3 / vrc-get-gui</title>
+    <style>
+        html,
+        body,
+        #app {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }
+    </style>
+    <script vite-ignore src="vrc-get://localhost/global-info.js"></script>
+    <script vite-ignore src="http://vrc-get.localhost/global-info.js"></script>
+</head>
+
+<body>
+<div id="app" class="font-sans w-screen h-screen flex flex-row overflow-hidden whitespace-nowrap"></div>
+<script type="module" src="/lib/main.tsx"></script>
+</body>
+</html>

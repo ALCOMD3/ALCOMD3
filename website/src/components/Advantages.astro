@@ -1,0 +1,163 @@
+---
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { siteConfig, type LocaleContent } from "@/data/site";
+
+type Props = {
+    locale: LocaleContent;
+};
+
+const { locale } = Astro.props;
+const mcpCapabilityStyles = [
+    {
+        icon: "hub",
+        chips: ["MCP", "stdio"],
+    },
+    {
+        icon: "lock",
+        chips: ["Scoped", "Local"],
+    },
+    {
+        icon: "visibility",
+        chips: ["Projects", "Logs"],
+    },
+];
+const appAdvantageStyles = [
+    {
+        icon: "palette",
+        shape: "sided-cookie12",
+        chips: ["MD3", "Theme"],
+    },
+    {
+        icon: "progress_activity",
+        shape: "puffy",
+        chips: ["Progress", "Retry"],
+    },
+    {
+        icon: "system_update_alt",
+        shape: "bun",
+        chips: ["Release", "Update"],
+    },
+    {
+        icon: "desktop_windows",
+        shape: "arch",
+        chips: ["Desktop", "Integration"],
+    },
+];
+const mcpAdvantages = locale.advantages.slice(0, 3);
+const appAdvantages = locale.advantages.slice(3);
+const mcpDocsHref = getRelativeLocaleUrl(locale.lang, siteConfig.mcpDocsPath);
+---
+
+<style>
+    .icon-container {
+        align-items: center;
+        block-size: 8rem;
+        display: inline-flex;
+        inline-size: 8rem;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .icon-container i {
+        align-items: center;
+        block-size: 4rem;
+        display: inline-flex;
+        font-size: 4rem;
+        inline-size: 4rem;
+        justify-content: center;
+        line-height: 1;
+    }
+
+    .advantage-row {
+        padding-block: 1rem;
+        row-gap: 2rem;
+    }
+
+    @media only screen and (min-width: 993px) {
+        .advantage-row {
+            padding-block: 1.75rem;
+        }
+
+        .advantage-row.is-reversed .advantage-media {
+            order: 2 !important;
+        }
+
+        .advantage-row.is-reversed .advantage-copy {
+            order: 1 !important;
+        }
+    }
+</style>
+
+<!-- MCP Section -->
+<section class="large-padding" aria-labelledby="mcp-section-title">
+    <div class="center-align">
+        <h2 id="mcp-section-title" class="large-title">{locale.mcpSectionTitle}</h2>
+        <p class="max-width-60">{locale.mcpSectionDescription}</p>
+    </div>
+    <div class="space"></div>
+    <article class="round large-padding surface-container">
+        <div class="grid">
+            {mcpAdvantages.map((advantage, index) => (
+                <div class="s12 l4 padding">
+                    <div class="row middle-align">
+                        <i class="large primary-text">{mcpCapabilityStyles[index].icon}</i>
+                        <div class="max">
+                            <h5 class="bold">{advantage.title}</h5>
+                        </div>
+                    </div>
+                    <p>{advantage.body}</p>
+                    <div class="row wrap small-space">
+                        {mcpCapabilityStyles[index].chips.map((chip) => (
+                            <span class="chip">{chip}</span>
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+        <div class="large-divider"></div>
+        <div class="center-align">
+            <a
+                class="button large round primary-container docs-entry"
+                href={mcpDocsHref}
+            >
+                <i>article</i>
+                <span>{locale.mcpDocsLabel}</span>
+            </a>
+        </div>
+    </article>
+</section>
+
+<div class="large-divider"></div>
+
+<!-- App/Desktop Experience Section -->
+<section class="large-padding" aria-labelledby="app-advantages-title">
+    <div class="center-align">
+        <h2 class="large-title" id="app-advantages-title">{locale.appAdvantagesTitle}</h2>
+    </div>
+    <div class="large-space"></div>
+
+    {appAdvantages.map((advantage, index) => {
+        const isReversed = index % 2 === 1;
+        return (
+            <>
+                <div class={`grid middle-align large-margin advantage-row ${isReversed ? 'is-reversed' : ''}`}>
+                    <div class="s12 l3 center-align advantage-media">
+                        <div class={`shape icon-container primary-container ${appAdvantageStyles[index].shape}`}>
+                            <i>{appAdvantageStyles[index].icon}</i>
+                        </div>
+                    </div>
+                    <div class="s12 l9 advantage-copy">
+                        <h4 class="bold">{advantage.title}</h4>
+                        <p>{advantage.body}</p>
+                        <div class="row wrap small-space">
+                            {appAdvantageStyles[index].chips.map((chip) => (
+                                <span class="chip">{chip}</span>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                {index < appAdvantages.length - 1 && <div class="divider"></div>}
+            </>
+        );
+    })}
+</section>

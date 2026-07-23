@@ -1,0 +1,20 @@
+#!/bin/sh
+
+appdir="$(readlink -f "$(dirname "$0")")"
+debian_tuple="@debian_tuple@"
+
+# Prefer bundled libraries and keep GStreamer lookup local to the AppDir.
+export GST_PLUGIN_PATH="$appdir/usr/lib/gstreamer-1.0:$appdir/usr/lib/$debian_tuple/gstreamer-1.0"
+export GST_PLUGIN_SYSTEM_PATH=""
+export GST_PLUGIN_SYSTEM_PATH_1_0=""
+export GST_REGISTRY_DISABLE=yes
+export GST_REGISTRY=""
+export GST_PLUGIN_SCANNER="$appdir/usr/libexec/gstreamer-1.0/gst-plugin-scanner"
+export LD_LIBRARY_PATH="$appdir/usr/lib:$appdir/usr/lib/$debian_tuple:$appdir/lib${LD_LIBRARY_PATH+:$LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="$appdir/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+
+# WebKitGTK and enchant contain absolute /usr/lib lookups; patched libraries
+# resolve those paths relative to this working directory.
+cd "$appdir/usr" || exit 1
+
+exec "$appdir/usr/bin/@binary_name@" "$@"

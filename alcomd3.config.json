@@ -1,0 +1,129 @@
+{
+    "productName": "ALCOMD3",
+    "mainBinaryName": "ALCOMD3",
+    "packageName": "alcomd3",
+    "mcpBinaryName": "alcomd3-mcp",
+    "publisherName": "CQMHV",
+    "homepageUrl": "https://alcomd3.cqmhv.com/",
+    "repository": "ALCOMD3/ALCOMD3",
+    "tauriIdentifier": "com.cqmhv.alcomd3",
+    "legacyTauriIdentifier": "com.anatawa12.vrc-get-gui",
+    "windowsAppId": "{3CA473A7-9CEA-4EB6-9949-803C3D0B8057}",
+    "windowsAumid": "CQMHV.ALCOMD3",
+    "legacyWindowsAppId": "{4C3D0631-AE29-4D20-A231-678D9CF8D6DB}",
+    "legacyWindowsMigrationReleaseTag": "v2.1.2",
+    "legacyWindowsExecutableName": "ALCOM.exe",
+    "installerFilePattern": "ALCOMD3_{version}_windows_x86_64_setup.exe",
+    "releasePlatforms": {
+        "windows-x86_64": {
+            "target": "x86_64-pc-windows-msvc",
+            "bundles": [
+                "setup-exe",
+                "setup-exe-zip"
+            ],
+            "updater": {
+                "assetPattern": "ALCOMD3_{version}_windows_x86_64_setup.exe",
+                "sourcePathPattern": "bundle/setup/ALCOMD3_{version}_windows_x86_64_setup.exe",
+                "maxDownloadBytes": 268435456,
+                "updateMode": "self-updater",
+                "args": [
+                    "/SP-",
+                    "/SILENT",
+                    "/NOICONS",
+                    "!peruser:/CURRENTUSER",
+                    "!machine:/ALLUSERS"
+                ]
+            },
+            "downloads": [
+                {
+                    "id": "windows-installer",
+                    "format": "zip",
+                    "assetPattern": "ALCOMD3_{version}_windows_x86_64_setup.exe.zip",
+                    "sourcePathPattern": "bundle/setup/ALCOMD3_{version}_windows_x86_64_setup.exe.zip",
+                    "updateMode": "self-updater",
+                    "primary": true
+                }
+            ]
+        },
+        "darwin-aarch64": {
+            "target": "aarch64-apple-darwin",
+            "bundles": [
+                "app",
+                "app-updater",
+                "dmg"
+            ],
+            "macosAdHocSigning": {},
+            "updater": {
+                "assetPattern": "ALCOMD3_{version}_macos_aarch64.app.tar.gz",
+                "sourcePathPattern": "bundle/macos/ALCOMD3.app.tar.gz",
+                "maxDownloadBytes": 536870912,
+                "updateMode": "self-updater",
+                "args": []
+            },
+            "downloads": [
+                {
+                    "id": "macos-apple-silicon",
+                    "format": "dmg",
+                    "assetPattern": "ALCOMD3_{version}_macos_aarch64.dmg",
+                    "sourcePathPattern": "bundle/dmg/ALCOMD3_{version}_aarch64.dmg",
+                    "updateMode": "self-updater",
+                    "primary": true
+                }
+            ]
+        },
+        "linux-x86_64": {
+            "target": "x86_64-unknown-linux-gnu",
+            "bundles": [
+                "appimage",
+                "appimage-updater",
+                "deb"
+            ],
+            "updater": {
+                "assetPattern": "ALCOMD3_{version}_linux_x86_64.AppImage.tar.gz",
+                "sourcePathPattern": "bundle/appimage/ALCOMD3_{version}_x86_64.AppImage.tar.gz",
+                "maxDownloadBytes": 536870912,
+                "updateMode": "self-updater",
+                "args": []
+            },
+            "downloads": [
+                {
+                    "id": "linux-appimage",
+                    "format": "appimage",
+                    "assetPattern": "ALCOMD3_{version}_linux_x86_64.AppImage",
+                    "sourcePathPattern": "bundle/appimage/ALCOMD3_{version}_x86_64.AppImage",
+                    "updateMode": "self-updater",
+                    "primary": true
+                },
+                {
+                    "id": "linux-deb",
+                    "format": "deb",
+                    "assetPattern": "ALCOMD3_{version}_linux_amd64.deb",
+                    "sourcePathPattern": "bundle/deb/alcomd3_{version}-1_amd64.deb",
+                    "updateMode": "no-self-updater",
+                    "primary": false
+                }
+            ]
+        }
+    },
+    "shortDescription": "ALCOMD3 - Alternative Creator Companion",
+    "longDescription": "ALCOMD3 is a fast and open-source alternative VCC (VRChat Creator Companion) written in rust and tauri.",
+    "copyright": "(c) anatawa12 and other contributors; (c) 2026 CQMHV and ALCOMD3 contributors",
+    "updaterManifests": {
+        "stable": {
+            "workspacePath": "website/public/api/gui/tauri-updater.json",
+            "publicPath": "/api/gui/tauri-updater.json"
+        },
+        "beta": {
+            "workspacePath": "website/public/api/gui/tauri-updater-beta.json",
+            "publicPath": "/api/gui/tauri-updater-beta.json"
+        }
+    },
+    "releaseAutomation": {
+        "rustToolchain": "1.95.0"
+    },
+    "templateAssociation": {
+        "name": "ALCOMD3 Template",
+        "extension": ".alcomtemplate",
+        "key": "ALCOMD3 Project Template"
+    }
+}

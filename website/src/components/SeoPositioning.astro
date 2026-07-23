@@ -1,0 +1,19 @@
+---
+import type { LocaleContent } from "@/data/site";
+
+type Props = {
+    locale: LocaleContent;
+};
+
+const { locale } = Astro.props;
+---
+
+<section class="large-padding center-align" aria-labelledby="positioning-title">
+    <h2 class="large-title" id="positioning-title">{locale.positioningTitle}</h2>
+    <p class="large-text large-line max-width-60">{locale.positioningBody}</p>
+    <div class="row wrap center-align middle-align small-space">
+        {locale.positioningChips.map((chip) => (
+            <span class="chip">{chip}</span>
+        ))}
+    </div>
+</section>

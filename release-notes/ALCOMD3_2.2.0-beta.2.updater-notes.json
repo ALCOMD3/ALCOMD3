@@ -1,0 +1,9 @@
+{
+    "en": "Fixes repository sorting interactions and migrates Windows installations from the former shared AppId to a dedicated ALCOMD3 identity while preserving user data.",
+    "de": "Behebt Interaktionen beim Sortieren von Repositorys und migriert Windows-Installationen von der früheren gemeinsamen AppId zu einer eigenen ALCOMD3-Identität, wobei Benutzerdaten erhalten bleiben.",
+    "fr": "Corrige les interactions de tri des dépôts et migre les installations Windows de l’ancien AppId partagé vers une identité ALCOMD3 dédiée tout en conservant les données utilisateur.",
+    "ja": "リポジトリの並べ替え操作を修正し、ユーザーデータを保持したまま、Windows のインストールを以前の共有 AppId から ALCOMD3 専用 ID へ移行します。",
+    "ko": "저장소 정렬 상호작용을 수정하고 사용자 데이터를 유지하면서 Windows 설치를 이전 공유 AppId에서 ALCOMD3 전용 ID로 마이그레이션합니다.",
+    "zh_hans": "修复仓库排序交互，并在保留用户数据的同时，将 Windows 安装从旧共享 AppId 迁移到 ALCOMD3 专属身份。",
+    "zh_hant": "修正儲存庫排序互動，並在保留使用者資料的同時，將 Windows 安裝從舊共用 AppId 遷移至 ALCOMD3 專屬身分。"
+}

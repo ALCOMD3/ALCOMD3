@@ -1,0 +1,780 @@
+name: Full-chain desktop smoke
+
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - .github/scripts/installer-smoke.ps1
+            - .github/scripts/posix-package-smoke.mjs
+            - .github/scripts/resolve-windows-migration-installer.ps1
+            - .github/scripts/verify-installer-zip.ps1
+            - .github/workflows/full-chain.yml
+            - .github/workflows/release-draft.yml
+            - .github/workflows/release-updater.yml
+            - alcomd3-app-paths/**
+            - alcomd3-mcp/**
+            - alcomd3-mcp-protocol/**
+            - vrc-get-gui/**
+            - vrc-get-vpm/**
+            - xtask/**
+            - Cargo.lock
+            - Cargo.toml
+            - LICENSE
+            - alcomd3.config.json
+            - release-notes/**
+    pull_request:
+        types:
+            - opened
+            - synchronize
+            - reopened
+            - ready_for_review
+        paths:
+            - .github/scripts/installer-smoke.ps1
+            - .github/scripts/posix-package-smoke.mjs
+            - .github/scripts/resolve-windows-migration-installer.ps1
+            - .github/scripts/verify-installer-zip.ps1
+            - .github/workflows/full-chain.yml
+            - .github/workflows/release-draft.yml
+            - .github/workflows/release-updater.yml
+            - alcomd3-app-paths/**
+            - alcomd3-mcp/**
+            - alcomd3-mcp-protocol/**
+            - vrc-get-gui/**
+            - vrc-get-vpm/**
+            - xtask/**
+            - Cargo.lock
+            - Cargo.toml
+            - LICENSE
+            - alcomd3.config.json
+            - release-notes/**
+    schedule:
+        - cron: "0 19 * * 0"
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: full-chain-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+
+jobs:
+    windows:
+        name: Windows desktop, installer, and upgrade
+        if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+        runs-on: windows-2025
+        timeout-minutes: 150
+        env:
+            BUILD_TARGET: x86_64-pc-windows-msvc
+
+        steps:
+            - name: Checkout source
+              uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+              with:
+                  persist-credentials: false
+
+            - name: Set up Node.js 24
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version: 24
+                  cache: npm
+                  cache-dependency-path: vrc-get-gui/package-lock.json
+
+            - name: Set up pinned Rust toolchain
+              shell: pwsh
+              run: |
+                  $config = Get-Content alcomd3.config.json -Raw | ConvertFrom-Json
+                  $toolchain = $config.releaseAutomation.rustToolchain
+                  if ([string]::IsNullOrWhiteSpace($toolchain)) {
+                      throw "releaseAutomation.rustToolchain is not configured"
+                  }
+                  rustup toolchain install $toolchain --profile minimal --no-self-update
+                  rustup default $toolchain
+
+            - name: Install GUI test dependencies
+              working-directory: vrc-get-gui
+              shell: pwsh
+              run: npm.cmd ci
+
+            - name: Allow Edge WebView2 remote debugging
+              shell: pwsh
+              run: |
+                  $policyPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+                  New-Item -Path $policyPath -Force | Out-Null
+                  New-ItemProperty `
+                      -Path $policyPath `
+                      -Name RemoteDebuggingAllowed `
+                      -PropertyType DWord `
+                      -Value 1 `
+                      -Force | Out-Null
+                  $policy = Get-ItemProperty -Path $policyPath -Name RemoteDebuggingAllowed
+                  if ($policy.RemoteDebuggingAllowed -ne 1) {
+                      throw 'Failed to enable Edge WebView2 remote debugging for desktop E2E'
+                  }
+
+            - name: Build isolated desktop E2E application
+              shell: pwsh
+              run: cargo xtask build-alcom --target $env:BUILD_TARGET --desktop-e2e-webdriver
+
+            - name: Run real desktop E2E
+              working-directory: vrc-get-gui
+              env:
+                  ALCOMD3_E2E_DRIVER_PROVIDER: embedded
+                  ALCOMD3_E2E_TARGET: ${{ env.BUILD_TARGET }}
+                  ALCOMD3_E2E_BINARY: ${{ github.workspace }}\target\${{ env.BUILD_TARGET }}\debug\ALCOMD3.exe
+                  ALCOMD3_TEST_LOCAL_DATA_ROOT: ${{ runner.temp }}\alcomd3-desktop-e2e
+              shell: pwsh
+              run: npm.cmd run test:e2e:desktop
+
+            - name: Validate Windows update modes
+              shell: pwsh
+              run: |
+                  $platform = (Get-Content alcomd3.config.json -Raw | ConvertFrom-Json).releasePlatforms.'windows-x86_64'
+                  if ($platform.updater.updateMode -cne 'self-updater') {
+                      throw 'Windows updater payload must use self-updater mode'
+                  }
+                  foreach ($download in $platform.downloads) {
+                      if ($download.updateMode -cne 'self-updater') {
+                          throw "Windows download $($download.id) must use self-updater mode"
+                      }
+                  }
+
+            - name: Build self-updating release-profile application
+              shell: pwsh
+              run: cargo xtask build-alcom --release --target $env:BUILD_TARGET
+
+            - name: Build installer and ZIP
+              shell: pwsh
+              run: >-
+                  cargo xtask bundle-alcom
+                  --release
+                  --target $env:BUILD_TARGET
+                  --bundles setup-exe,setup-exe-zip
+
+            - name: Resolve current and previous installers
+              id: installers
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              shell: pwsh
+              run: |
+                  $config = Get-Content alcomd3.config.json -Raw | ConvertFrom-Json
+                  $metadata = cargo metadata --no-deps --format-version 1 | ConvertFrom-Json
+                  $version = ($metadata.packages | Where-Object name -eq 'vrc-get-gui').version
+                  if ([string]::IsNullOrWhiteSpace($version)) {
+                      throw 'Unable to resolve the current GUI version'
+                  }
+
+                  $installerName = $config.installerFilePattern.Replace('{version}', $version)
+                  $currentInstaller = Join-Path `
+                      $env:GITHUB_WORKSPACE `
+                      "target\$env:BUILD_TARGET\release\bundle\setup\$installerName"
+                  $currentZip = "$currentInstaller.zip"
+                  foreach ($path in @($currentInstaller, $currentZip)) {
+                      if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+                          throw "Expected bundle is missing: $path"
+                      }
+                  }
+
+                  $previousInstaller = & .github/scripts/resolve-windows-migration-installer.ps1 `
+                      -CurrentVersion $version `
+                      -OutputDirectory (Join-Path $env:RUNNER_TEMP 'alcomd3-previous')
+
+                  "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                  "installer=$currentInstaller" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                  "installer_zip=$currentZip" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                  "previous_installer=$previousInstaller" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+            - name: Verify installer ZIP
+              env:
+                  INSTALLER: ${{ steps.installers.outputs.installer }}
+                  INSTALLER_ZIP: ${{ steps.installers.outputs.installer_zip }}
+              shell: pwsh
+              run: |
+                  & .github/scripts/verify-installer-zip.ps1 `
+                      -Installer $env:INSTALLER `
+                      -Archive $env:INSTALLER_ZIP
+
+            - name: Install, upgrade, launch, and uninstall
+              env:
+                  CURRENT_INSTALLER: ${{ steps.installers.outputs.installer }}
+                  PREVIOUS_INSTALLER: ${{ steps.installers.outputs.previous_installer }}
+                  EXPECTED_VERSION: ${{ steps.installers.outputs.version }}
+                  RUNNER_ENVIRONMENT: ${{ runner.environment }}
+              shell: pwsh
+              run: |
+                  $parameters = @{
+                      CurrentInstaller = $env:CURRENT_INSTALLER
+                      ExpectedVersion = $env:EXPECTED_VERSION
+                      InstallDir = Join-Path $env:RUNNER_TEMP 'alcomd3-install-smoke'
+                  }
+                  if (-not [string]::IsNullOrWhiteSpace($env:PREVIOUS_INSTALLER)) {
+                      $parameters.PreviousInstaller = $env:PREVIOUS_INSTALLER
+                  }
+                  & .github/scripts/installer-smoke.ps1 @parameters
+
+            - name: Validate release command plans
+              env:
+                  VERSION: ${{ steps.installers.outputs.version }}
+              shell: pwsh
+              run: |
+                  $channel = if ($env:VERSION.Contains('-')) { 'beta' } else { 'stable' }
+                  cargo xtask release-build --version $env:VERSION --channel $channel --dry-run
+                  cargo xtask release-build --version $env:VERSION --channel $channel --release-artifacts --dry-run
+                  cargo xtask release-assemble `
+                      --version $env:VERSION `
+                      --channel $channel `
+                      --source-sha 0123456789abcdef0123456789abcdef01234567 `
+                      --dry-run
+                  cargo xtask release-publish --version $env:VERSION --channel $channel --dry-run
+                  cargo xtask release-preflight `
+                      --version $env:VERSION `
+                      --channel $channel `
+                      --source-sha 0123456789abcdef0123456789abcdef01234567 `
+                      --dry-run
+
+            - name: Verify published updater downloads and signatures
+              if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+              shell: pwsh
+              run: |
+                  function ConvertTo-CanonicalJsonValue {
+                      param([AllowNull()] $Value)
+
+                      if ($null -eq $Value) {
+                          return $null
+                      }
+                      if ($Value -is [pscustomobject]) {
+                          $result = [ordered] @{}
+                          foreach ($name in @($Value.PSObject.Properties.Name | Sort-Object)) {
+                              $result[$name] = ConvertTo-CanonicalJsonValue -Value $Value.$name
+                          }
+                          return [pscustomobject] $result
+                      }
+                      if ($Value -is [System.Collections.IEnumerable] -and $Value -isnot [string]) {
+                          $result = @()
+                          foreach ($item in $Value) {
+                              $result += ,(ConvertTo-CanonicalJsonValue -Value $item)
+                          }
+                          return ,$result
+                      }
+                      return $Value
+                  }
+
+                  $config = Get-Content alcomd3.config.json -Raw | ConvertFrom-Json
+                  foreach ($channel in @('stable', 'beta')) {
+                      $manifestConfig = $config.updaterManifests.$channel
+                      $workspaceManifestPath = Join-Path $env:GITHUB_WORKSPACE $manifestConfig.workspacePath
+                      $workspaceManifestSource = Get-Content -LiteralPath $workspaceManifestPath -Raw -Encoding utf8
+                      $downloadDirectory = Join-Path $env:RUNNER_TEMP "updater-$channel"
+                      New-Item -ItemType Directory -Path $downloadDirectory -ErrorAction Stop | Out-Null
+                      $manifestPath = Join-Path $downloadDirectory 'manifest.json'
+                      $manifestUri = '{0}/{1}' -f `
+                          $config.homepageUrl.TrimEnd('/'), `
+                          $manifestConfig.publicPath.TrimStart('/')
+                      Invoke-WebRequest `
+                          -Uri $manifestUri `
+                          -OutFile $manifestPath `
+                          -MaximumRetryCount 3 `
+                          -RetryIntervalSec 5
+                      $manifestSource = Get-Content -LiteralPath $manifestPath -Raw -Encoding utf8
+                      $workspaceManifest = $workspaceManifestSource | ConvertFrom-Json
+                      $manifest = $manifestSource | ConvertFrom-Json
+                      $normalizedWorkspaceManifest = ConvertTo-CanonicalJsonValue -Value $workspaceManifest |
+                          ConvertTo-Json -Depth 100 -Compress
+                      $normalizedPublicManifest = ConvertTo-CanonicalJsonValue -Value $manifest |
+                          ConvertTo-Json -Depth 100 -Compress
+                      if ($normalizedPublicManifest -cne $normalizedWorkspaceManifest) {
+                          throw "$channel public updater manifest differs from the checked-out manifest: $manifestUri"
+                      }
+                      $downloadedAssets = 0
+                      foreach ($platformProperty in $manifest.platforms.PSObject.Properties) {
+                          $platformKey = $platformProperty.Name
+                          if ($null -eq $config.releasePlatforms.PSObject.Properties[$platformKey]) {
+                              throw "$channel updater manifest has an unknown platform: $platformKey"
+                          }
+                          $downloadUri = [uri] $platformProperty.Value.url
+                          $assetName = [uri]::UnescapeDataString(
+                              [System.IO.Path]::GetFileName($downloadUri.AbsolutePath)
+                          )
+                          $expectedPrefix = "/$($config.repository)/releases/download/v$($manifest.version)/"
+                          if (
+                              $downloadUri.Scheme -cne 'https' -or
+                              $downloadUri.Host -cne 'github.com' -or
+                              -not $downloadUri.AbsolutePath.StartsWith($expectedPrefix) -or
+                              [string]::IsNullOrWhiteSpace($assetName) -or
+                              -not [string]::IsNullOrEmpty($downloadUri.Query) -or
+                              -not [string]::IsNullOrEmpty($downloadUri.Fragment)
+                          ) {
+                              throw "$channel updater download URL is invalid for ${platformKey}: $($platformProperty.Value.url)"
+                          }
+
+                          $asset = Join-Path $downloadDirectory $assetName
+                          Invoke-WebRequest `
+                              -Uri $downloadUri `
+                              -OutFile $asset `
+                              -MaximumRetryCount 3 `
+                              -RetryIntervalSec 5
+                          $downloadedAssets++
+                      }
+                      if ($downloadedAssets -eq 0) {
+                          throw "$channel updater manifest has no platforms"
+                      }
+                      $verifyArguments = @(
+                          'xtask',
+                          'verify-alcom-updater-json',
+                          '--assets', $downloadDirectory,
+                          '--json', $manifestPath,
+                          '--published-manifest'
+                      )
+                      if ($channel -eq 'stable') {
+                          $verifyArguments += @('--expected-signature-purpose', 'release')
+                      }
+                      cargo @verifyArguments
+                      if ($LASTEXITCODE -ne 0) {
+                          exit $LASTEXITCODE
+                      }
+                  }
+
+            - name: Upload smoke diagnostics on failure
+              if: failure()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: full-chain-smoke-${{ github.run_attempt }}
+                  path: |
+                      target/e2e-desktop-logs/
+                      ${{ runner.temp }}/alcomd3-installer-smoke-*.log
+                  if-no-files-found: warn
+                  retention-days: 7
+
+    macos:
+        name: macOS desktop and bundles
+        if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+        runs-on: macos-15
+        timeout-minutes: 150
+        env:
+            BUILD_TARGET: aarch64-apple-darwin
+
+        steps:
+            - name: Checkout source
+              uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+              with:
+                  persist-credentials: false
+
+            - name: Set up Node.js 24
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version: 24
+                  cache: npm
+                  cache-dependency-path: vrc-get-gui/package-lock.json
+
+            - name: Set up pinned Rust toolchain
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  toolchain="$(jq -r '.releaseAutomation.rustToolchain' alcomd3.config.json)"
+                  if [[ -z "$toolchain" || "$toolchain" == "null" ]]; then
+                      echo "releaseAutomation.rustToolchain is not configured" >&2
+                      exit 1
+                  fi
+                  rustup toolchain install "$toolchain" --profile minimal --target "$BUILD_TARGET" --no-self-update
+                  rustup default "$toolchain"
+
+            - name: Install GUI test dependencies
+              working-directory: vrc-get-gui
+              shell: bash
+              run: npm ci
+
+            - name: Build isolated desktop E2E application
+              shell: bash
+              run: >-
+                  cargo xtask build-alcom
+                  --target "$BUILD_TARGET"
+                  --desktop-e2e-webdriver
+
+            - name: Run real desktop E2E
+              working-directory: vrc-get-gui
+              env:
+                  ALCOMD3_E2E_TARGET: ${{ env.BUILD_TARGET }}
+                  ALCOMD3_E2E_BINARY: ${{ github.workspace }}/target/${{ env.BUILD_TARGET }}/debug/ALCOMD3
+                  ALCOMD3_E2E_DRIVER_PROVIDER: embedded
+                  ALCOMD3_TEST_LOCAL_DATA_ROOT: ${{ runner.temp }}/alcomd3-desktop-e2e
+              shell: bash
+              run: npm run test:e2e:desktop:unix
+
+            - name: Validate macOS release policy
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  jq -e \
+                      '.releasePlatforms["darwin-aarch64"] as $platform |
+                       ($platform.macosAdHocSigning | type == "object" and length == 0) and
+                       ($platform.updater.updateMode == "self-updater") and
+                       ([ $platform.downloads[].updateMode ] | all(. == "self-updater"))' \
+                      alcomd3.config.json >/dev/null
+
+            - name: Build self-updating release-profile application
+              shell: bash
+              run: cargo xtask build-alcom --release --target "$BUILD_TARGET"
+
+            - name: Build application bundle
+              shell: bash
+              run: >-
+                  cargo xtask bundle-alcom
+                  --release
+                  --target "$BUILD_TARGET"
+                  --bundles app
+
+            - name: Ad-hoc sign application bundle
+              shell: bash
+              run: cargo xtask sign-alcom-app --target "$BUILD_TARGET"
+
+            - name: Build updater archive and DMG
+              shell: bash
+              run: >-
+                  cargo xtask bundle-alcom
+                  --release
+                  --target "$BUILD_TARGET"
+                  --bundles app-updater,dmg
+
+            - name: Resolve macOS bundles
+              id: bundles
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "vrc-get-gui") | .version')"
+                  product="$(jq -r '.productName' alcomd3.config.json)"
+                  binary="$(jq -r '.mainBinaryName' alcomd3.config.json)"
+                  mcp_binary="$(jq -r '.mcpBinaryName' alcomd3.config.json)"
+                  bundle_root="$GITHUB_WORKSPACE/target/$BUILD_TARGET/release/bundle"
+                  app="$bundle_root/macos/$product.app"
+                  updater="$app.tar.gz"
+                  dmg="$bundle_root/dmg/${product}_${version}_aarch64.dmg"
+                  for path in "$app" "$updater" "$dmg"; do
+                      if [[ ! -e "$path" ]]; then
+                          echo "Expected bundle is missing: $path" >&2
+                          exit 1
+                      fi
+                  done
+                  {
+                      echo "version=$version"
+                      echo "product=$product"
+                      echo "binary=$binary"
+                      echo "mcp_binary=$mcp_binary"
+                      echo "app=$app"
+                      echo "updater=$updater"
+                      echo "dmg=$dmg"
+                  } >> "$GITHUB_OUTPUT"
+
+            - name: Ad-hoc sign final DMG
+              env:
+                  DMG: ${{ steps.bundles.outputs.dmg }}
+              shell: bash
+              run: cargo xtask sign-alcom-app --dmg "$DMG"
+
+            - name: Verify app and updater archive
+              env:
+                  APP_BUNDLE: ${{ steps.bundles.outputs.app }}
+                  APP_UPDATER: ${{ steps.bundles.outputs.updater }}
+                  EXPECTED_VERSION: ${{ steps.bundles.outputs.version }}
+                  PRODUCT_NAME: ${{ steps.bundles.outputs.product }}
+                  BINARY_NAME: ${{ steps.bundles.outputs.binary }}
+                  MCP_BINARY_NAME: ${{ steps.bundles.outputs.mcp_binary }}
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  plist="$APP_BUNDLE/Contents/Info.plist"
+                  identifier="$(jq -r '.tauriIdentifier' alcomd3.config.json)"
+                  [[ "$(plutil -extract CFBundleName raw "$plist")" == "$PRODUCT_NAME" ]]
+                  [[ "$(plutil -extract CFBundleExecutable raw "$plist")" == "$BINARY_NAME" ]]
+                  [[ "$(plutil -extract CFBundleIdentifier raw "$plist")" == "$identifier" ]]
+                  [[ "$(plutil -extract CFBundleShortVersionString raw "$plist")" == "$EXPECTED_VERSION" ]]
+                  test -x "$APP_BUNDLE/Contents/MacOS/$BINARY_NAME"
+                  test -x "$APP_BUNDLE/Contents/MacOS/$MCP_BINARY_NAME"
+                  file "$APP_BUNDLE/Contents/MacOS/$BINARY_NAME" | grep -q 'arm64'
+                  file "$APP_BUNDLE/Contents/MacOS/$MCP_BINARY_NAME" | grep -q 'arm64'
+                  for path in \
+                      "$APP_BUNDLE/Contents/MacOS/$BINARY_NAME" \
+                      "$APP_BUNDLE/Contents/MacOS/$MCP_BINARY_NAME" \
+                      "$APP_BUNDLE"; do
+                      codesign --verify --strict --verbose=4 "$path"
+                      signature_details="$(codesign --display --verbose=4 "$path" 2>&1)"
+                      grep -Fx 'Signature=adhoc' <<< "$signature_details"
+                  done
+
+                  archive_entries="$(tar -tzf "$APP_UPDATER")"
+                  [[ "$(printf '%s\n' "$archive_entries" | sed '/^$/d' | wc -l | tr -d ' ')" -gt 2 ]]
+                  printf '%s\n' "$archive_entries" | grep -q "^${PRODUCT_NAME}\.app/Contents/MacOS/${BINARY_NAME}$"
+                  printf '%s\n' "$archive_entries" | grep -q "^${PRODUCT_NAME}\.app/Contents/MacOS/${MCP_BINARY_NAME}$"
+                  extracted="$RUNNER_TEMP/alcomd3-app-updater"
+                  mkdir -p "$extracted"
+                  tar -xzf "$APP_UPDATER" -C "$extracted"
+                  cmp "$APP_BUNDLE/Contents/MacOS/$BINARY_NAME" "$extracted/$PRODUCT_NAME.app/Contents/MacOS/$BINARY_NAME"
+                  cmp "$APP_BUNDLE/Contents/MacOS/$MCP_BINARY_NAME" "$extracted/$PRODUCT_NAME.app/Contents/MacOS/$MCP_BINARY_NAME"
+                  codesign --verify --strict --verbose=4 "$extracted/$PRODUCT_NAME.app"
+                  signature_details="$(codesign --display --verbose=4 "$extracted/$PRODUCT_NAME.app" 2>&1)"
+                  grep -Fx 'Signature=adhoc' <<< "$signature_details"
+
+            - name: Mount, copy, launch, and remove DMG application
+              env:
+                  DMG: ${{ steps.bundles.outputs.dmg }}
+                  PRODUCT_NAME: ${{ steps.bundles.outputs.product }}
+                  BINARY_NAME: ${{ steps.bundles.outputs.binary }}
+                  RUNNER_ENVIRONMENT: ${{ runner.environment }}
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  codesign --verify --strict --verbose=4 "$DMG"
+                  signature_details="$(codesign --display --verbose=4 "$DMG" 2>&1)"
+                  grep -Fx 'Signature=adhoc' <<< "$signature_details"
+                  mount_path="$RUNNER_TEMP/alcomd3-dmg"
+                  installed_app="$RUNNER_TEMP/alcomd3-installed/$PRODUCT_NAME.app"
+                  mkdir -p "$mount_path" "$(dirname "$installed_app")"
+                  cleanup() {
+                      hdiutil detach "$mount_path" -force >/dev/null 2>&1 || true
+                      rm -rf "$installed_app"
+                  }
+                  trap cleanup EXIT
+                  hdiutil attach -readonly -nobrowse -mountpoint "$mount_path" "$DMG"
+                  [[ -L "$mount_path/Applications" ]]
+                  [[ "$(readlink "$mount_path/Applications")" == "/Applications" ]]
+                  test -d "$mount_path/$PRODUCT_NAME.app"
+                  ditto "$mount_path/$PRODUCT_NAME.app" "$installed_app"
+                  cmp "$mount_path/$PRODUCT_NAME.app/Contents/MacOS/$BINARY_NAME" "$installed_app/Contents/MacOS/$BINARY_NAME"
+                  hdiutil detach "$mount_path"
+                  node .github/scripts/posix-package-smoke.mjs \
+                      --binary "$installed_app/Contents/MacOS/$BINARY_NAME" \
+                      --data-root "$RUNNER_TEMP/alcomd3-macos-package-smoke" \
+                      --label "macOS DMG application"
+
+            - name: Upload macOS smoke diagnostics on failure
+              if: failure()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: full-chain-macos-smoke-${{ github.run_attempt }}
+                  path: |
+                      target/e2e-desktop-logs/
+                      ${{ runner.temp }}/alcomd3-macos-package-smoke/application.log
+                  if-no-files-found: warn
+                  retention-days: 7
+
+    linux:
+        name: Linux desktop and packages
+        if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+        runs-on: ubuntu-22.04
+        timeout-minutes: 150
+        env:
+            BUILD_TARGET: x86_64-unknown-linux-gnu
+
+        steps:
+            - name: Checkout source
+              uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+              with:
+                  persist-credentials: false
+
+            - name: Install Linux desktop dependencies
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  sudo apt-get update
+                  sudo apt-get install --yes --no-install-recommends \
+                      build-essential \
+                      curl \
+                      dbus-x11 \
+                      file \
+                      libayatana-appindicator3-dev \
+                      librsvg2-dev \
+                      libssl-dev \
+                      libwebkit2gtk-4.1-dev \
+                      libxdo-dev \
+                      wget \
+                      xvfb
+
+            - name: Set up Node.js 24
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version: 24
+                  cache: npm
+                  cache-dependency-path: vrc-get-gui/package-lock.json
+
+            - name: Set up pinned Rust toolchain
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  toolchain="$(jq -r '.releaseAutomation.rustToolchain' alcomd3.config.json)"
+                  if [[ -z "$toolchain" || "$toolchain" == "null" ]]; then
+                      echo "releaseAutomation.rustToolchain is not configured" >&2
+                      exit 1
+                  fi
+                  rustup toolchain install "$toolchain" --profile minimal --target "$BUILD_TARGET" --no-self-update
+                  rustup default "$toolchain"
+
+            - name: Install GUI test dependencies
+              working-directory: vrc-get-gui
+              shell: bash
+              run: npm ci
+
+            - name: Build isolated desktop E2E application
+              shell: bash
+              run: >-
+                  cargo xtask build-alcom
+                  --target "$BUILD_TARGET"
+                  --desktop-e2e-webdriver
+
+            - name: Run real desktop E2E
+              working-directory: vrc-get-gui
+              env:
+                  ALCOMD3_E2E_TARGET: ${{ env.BUILD_TARGET }}
+                  ALCOMD3_E2E_BINARY: ${{ github.workspace }}/target/${{ env.BUILD_TARGET }}/debug/ALCOMD3
+                  ALCOMD3_E2E_DRIVER_PROVIDER: embedded
+                  ALCOMD3_TEST_LOCAL_DATA_ROOT: ${{ runner.temp }}/alcomd3-desktop-e2e
+              shell: bash
+              run: xvfb-run -a npm run test:e2e:desktop:unix
+
+            - name: Validate Linux update modes
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  jq -e '
+                      .releasePlatforms["linux-x86_64"] as $platform |
+                      ($platform.updater.updateMode == "self-updater") and
+                      ([ $platform.downloads[] | select(.format == "appimage") | .updateMode ] == ["self-updater"]) and
+                      ([ $platform.downloads[] | select(.format == "deb") | .updateMode ] == ["no-self-updater"])
+                  ' alcomd3.config.json >/dev/null
+
+            - name: Build self-updating release-profile application
+              shell: bash
+              run: cargo xtask build-alcom --release --target "$BUILD_TARGET"
+
+            - name: Build AppImage and updater archive
+              shell: bash
+              run: >-
+                  cargo xtask bundle-alcom
+                  --release
+                  --target "$BUILD_TARGET"
+                  --bundles appimage,appimage-updater
+
+            - name: Build package-manager release-profile application
+              shell: bash
+              run: >-
+                  cargo xtask build-alcom
+                  --release
+                  --target "$BUILD_TARGET"
+                  --no-self-updater
+
+            - name: Build DEB
+              shell: bash
+              run: >-
+                  cargo xtask bundle-alcom
+                  --release
+                  --target "$BUILD_TARGET"
+                  --bundles deb
+
+            - name: Resolve Linux packages
+              id: packages
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "vrc-get-gui") | .version')"
+                  product="$(jq -r '.productName' alcomd3.config.json)"
+                  package="$(jq -r '.packageName' alcomd3.config.json)"
+                  binary="$(jq -r '.mainBinaryName' alcomd3.config.json)"
+                  mcp_binary="$(jq -r '.mcpBinaryName' alcomd3.config.json)"
+                  bundle_root="$GITHUB_WORKSPACE/target/$BUILD_TARGET/release/bundle"
+                  appimage="$bundle_root/appimage/${product}_${version}_x86_64.AppImage"
+                  updater="$appimage.tar.gz"
+                  deb="$bundle_root/deb/${package}_${version}-1_amd64.deb"
+                  for path in "$appimage" "$updater" "$deb"; do
+                      if [[ ! -f "$path" ]]; then
+                          echo "Expected package is missing: $path" >&2
+                          exit 1
+                      fi
+                  done
+                  {
+                      echo "version=$version"
+                      echo "product=$product"
+                      echo "package=$package"
+                      echo "binary=$binary"
+                      echo "mcp_binary=$mcp_binary"
+                      echo "appimage=$appimage"
+                      echo "updater=$updater"
+                      echo "deb=$deb"
+                  } >> "$GITHUB_OUTPUT"
+
+            - name: Verify and launch AppImage
+              env:
+                  APPIMAGE: ${{ steps.packages.outputs.appimage }}
+                  APPIMAGE_UPDATER: ${{ steps.packages.outputs.updater }}
+                  BINARY_NAME: ${{ steps.packages.outputs.binary }}
+                  MCP_BINARY_NAME: ${{ steps.packages.outputs.mcp_binary }}
+                  RUNNER_ENVIRONMENT: ${{ runner.environment }}
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  chmod +x "$APPIMAGE"
+                  entry="$(tar -tzf "$APPIMAGE_UPDATER")"
+                  [[ "$entry" == "$(basename "$APPIMAGE")" ]]
+                  extracted="$RUNNER_TEMP/alcomd3-appimage-updater"
+                  mkdir -p "$extracted"
+                  tar -xzf "$APPIMAGE_UPDATER" -C "$extracted"
+                  cmp "$APPIMAGE" "$extracted/$(basename "$APPIMAGE")"
+
+                  appdir="$RUNNER_TEMP/alcomd3-appimage-extracted"
+                  mkdir -p "$appdir"
+                  (
+                      cd "$appdir"
+                      "$APPIMAGE" --appimage-extract >/dev/null
+                  )
+                  test -x "$appdir/squashfs-root/AppRun"
+                  test -x "$appdir/squashfs-root/usr/bin/$BINARY_NAME"
+                  test -x "$appdir/squashfs-root/usr/bin/$MCP_BINARY_NAME"
+
+                  xvfb-run -a node .github/scripts/posix-package-smoke.mjs \
+                      --binary "$APPIMAGE" \
+                      --data-root "$RUNNER_TEMP/alcomd3-appimage-smoke" \
+                      --label "Linux AppImage" \
+                      --pid-mode process-group
+
+            - name: Inspect, install, launch, and purge DEB
+              env:
+                  DEB: ${{ steps.packages.outputs.deb }}
+                  EXPECTED_VERSION: ${{ steps.packages.outputs.version }}
+                  PACKAGE_NAME: ${{ steps.packages.outputs.package }}
+                  MCP_BINARY_NAME: ${{ steps.packages.outputs.mcp_binary }}
+                  RUNNER_ENVIRONMENT: ${{ runner.environment }}
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  cleanup() {
+                      sudo dpkg --purge "$PACKAGE_NAME" >/dev/null 2>&1 || true
+                  }
+                  trap cleanup EXIT
+                  [[ "$(dpkg-deb -f "$DEB" Package)" == "$PACKAGE_NAME" ]]
+                  [[ "$(dpkg-deb -f "$DEB" Version)" == "$EXPECTED_VERSION-1" ]]
+                  [[ "$(dpkg-deb -f "$DEB" Architecture)" == "amd64" ]]
+                  extracted="$RUNNER_TEMP/alcomd3-deb-extracted"
+                  mkdir -p "$extracted"
+                  dpkg-deb -x "$DEB" "$extracted"
+                  test -x "$extracted/usr/bin/$PACKAGE_NAME"
+                  test -x "$extracted/usr/bin/$MCP_BINARY_NAME"
+                  sudo dpkg -i "$DEB"
+                  test -x "/usr/bin/$PACKAGE_NAME"
+                  test -x "/usr/bin/$MCP_BINARY_NAME"
+                  xvfb-run -a node .github/scripts/posix-package-smoke.mjs \
+                      --binary "/usr/bin/$PACKAGE_NAME" \
+                      --data-root "$RUNNER_TEMP/alcomd3-deb-smoke" \
+                      --label "Linux DEB installation"
+                  sudo dpkg --purge "$PACKAGE_NAME"
+                  ! test -e "/usr/bin/$PACKAGE_NAME"
+                  ! test -e "/usr/bin/$MCP_BINARY_NAME"
+
+            - name: Upload Linux smoke diagnostics on failure
+              if: failure()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: full-chain-linux-smoke-${{ github.run_attempt }}
+                  path: |
+                      target/e2e-desktop-logs/
+                      ${{ runner.temp }}/alcomd3-appimage-smoke/application.log
+                      ${{ runner.temp }}/alcomd3-deb-smoke/application.log
+                  if-no-files-found: warn
+                  retention-days: 7

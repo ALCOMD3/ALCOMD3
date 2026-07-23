@@ -1,0 +1,457 @@
+name: Build release draft
+
+on:
+    workflow_dispatch:
+        inputs:
+            version:
+                description: Release version without the v prefix
+                required: true
+                type: string
+            channel:
+                description: Release channel
+                required: true
+                default: stable
+                type: choice
+                options:
+                    - stable
+                    - beta
+            replace_existing_draft:
+                description: Replace assets on an existing draft release
+                required: true
+                default: false
+                type: boolean
+
+permissions:
+    contents: read
+
+concurrency:
+    group: release-draft-${{ inputs.version }}
+    cancel-in-progress: false
+    queue: max
+
+env:
+    VERSION: ${{ inputs.version }}
+    CHANNEL: ${{ inputs.channel }}
+    SOURCE_SHA: ${{ github.sha }}
+
+jobs:
+    preflight:
+        name: Validate release source and Draft state
+        if: github.ref == 'refs/heads/main'
+        runs-on: windows-2025
+        timeout-minutes: 30
+
+        steps:
+            - name: Checkout pinned release source
+              uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+              with:
+                  ref: ${{ github.sha }}
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - name: Set up pinned Rust toolchain
+              shell: pwsh
+              run: |
+                  $config = Get-Content alcomd3.config.json -Raw | ConvertFrom-Json
+                  $toolchain = $config.releaseAutomation.rustToolchain
+                  if ([string]::IsNullOrWhiteSpace($toolchain)) {
+                      throw "releaseAutomation.rustToolchain is not configured"
+                  }
+                  rustup toolchain install $toolchain --profile minimal --no-self-update
+                  rustup default $toolchain
+
+            - name: Build release tooling without Secrets
+              shell: pwsh
+              run: cargo build --profile xtask --package xtask
+
+            - name: Validate prepared release source
+              shell: pwsh
+              run: >-
+                  cargo xtask release-validate
+                  --version $env:VERSION
+                  --channel $env:CHANNEL
+
+            - name: Preflight GitHub Release state
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  REPLACE_EXISTING_DRAFT: ${{ inputs.replace_existing_draft }}
+              shell: pwsh
+              run: |
+                  $arguments = @(
+                      "release-preflight",
+                      "--version", $env:VERSION,
+                      "--channel", $env:CHANNEL,
+                      "--source-sha", $env:SOURCE_SHA
+                  )
+                  if ($env:REPLACE_EXISTING_DRAFT -eq "true") {
+                      $arguments += "--replace-existing-draft"
+                  }
+                  cargo xtask @arguments
+                  if ($LASTEXITCODE -ne 0) {
+                      exit $LASTEXITCODE
+                  }
+
+    build-windows:
+        name: Build Windows x64 shard
+        needs: preflight
+        runs-on: windows-2025
+        timeout-minutes: 120
+
+        steps:
+            - name: Checkout pinned release source
+              uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+              with:
+                  ref: ${{ github.sha }}
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - name: Set up Node.js 24
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version: 24
+                  cache: npm
+                  cache-dependency-path: vrc-get-gui/package-lock.json
+
+            - name: Set up pinned Rust toolchain
+              shell: pwsh
+              run: |
+                  $config = Get-Content alcomd3.config.json -Raw | ConvertFrom-Json
+                  $toolchain = $config.releaseAutomation.rustToolchain
+                  $target = $config.releasePlatforms.'windows-x86_64'.target
+                  rustup toolchain install $toolchain --profile minimal --target $target --no-self-update
+                  rustup default $toolchain
+
+            - name: Install GUI dependencies
+              working-directory: vrc-get-gui
+              shell: pwsh
+              run: npm.cmd ci
+
+            - name: Build Windows release shard
+              shell: pwsh
+              run: >-
+                  cargo xtask release-build
+                  --version $env:VERSION
+                  --channel $env:CHANNEL
+                  --platform windows-x86_64
+                  --skip-validation
+                  --github-actions-release
+
+            - name: Resolve Windows release smoke installers
+              id: installers
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              shell: pwsh
+              run: |
+                  $config = Get-Content alcomd3.config.json -Raw | ConvertFrom-Json
+                  $installerName = $config.installerFilePattern.Replace('{version}', $env:VERSION)
+                  $currentInstaller = Join-Path `
+                      $env:GITHUB_WORKSPACE `
+                      "artifacts\release\v$env:VERSION\$installerName"
+                  $currentZip = "$currentInstaller.zip"
+                  foreach ($path in @($currentInstaller, $currentZip)) {
+                      if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+                          throw "Expected Windows release artifact is missing: $path"
+                      }
+                  }
+                  $previousInstaller = & .github/scripts/resolve-windows-migration-installer.ps1 `
+                      -CurrentVersion $env:VERSION `
+                      -OutputDirectory (Join-Path $env:RUNNER_TEMP 'alcomd3-previous')
+
+                  "installer=$currentInstaller" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                  "installer_zip=$currentZip" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                  "previous_installer=$previousInstaller" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+            - name: Verify Windows release installer ZIP
+              env:
+                  INSTALLER: ${{ steps.installers.outputs.installer }}
+                  INSTALLER_ZIP: ${{ steps.installers.outputs.installer_zip }}
+              shell: pwsh
+              run: |
+                  & .github/scripts/verify-installer-zip.ps1 `
+                      -Installer $env:INSTALLER `
+                      -Archive $env:INSTALLER_ZIP
+
+            - name: Upgrade migration baseline with Windows release installer
+              env:
+                  CURRENT_INSTALLER: ${{ steps.installers.outputs.installer }}
+                  PREVIOUS_INSTALLER: ${{ steps.installers.outputs.previous_installer }}
+                  EXPECTED_VERSION: ${{ inputs.version }}
+                  RUNNER_ENVIRONMENT: ${{ runner.environment }}
+              shell: pwsh
+              run: |
+                  & .github/scripts/installer-smoke.ps1 `
+                      -CurrentInstaller $env:CURRENT_INSTALLER `
+                      -PreviousInstaller $env:PREVIOUS_INSTALLER `
+                      -ExpectedVersion $env:EXPECTED_VERSION `
+                      -InstallDir (Join-Path $env:RUNNER_TEMP 'alcomd3-release-install-smoke')
+
+            - name: Upload Windows smoke diagnostics on failure
+              if: failure()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: release-windows-smoke-v${{ inputs.version }}-${{ github.run_attempt }}
+                  path: |
+                      ${{ runner.temp }}/alcomd3-installer-smoke-*.log
+                  if-no-files-found: warn
+                  retention-days: 7
+
+            - name: Upload Windows shard
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: alcomd3-release-windows-v${{ inputs.version }}-${{ github.run_attempt }}
+                  path: |
+                      artifacts/release/v${{ inputs.version }}/
+                      artifacts/release-state/v${{ inputs.version }}/windows-x86_64.json
+                  if-no-files-found: error
+                  retention-days: 7
+                  compression-level: 0
+
+    build-macos:
+        name: Build ad-hoc signed macOS Apple Silicon shard
+        needs: preflight
+        runs-on: macos-15
+        timeout-minutes: 180
+
+        steps:
+            - name: Checkout pinned release source
+              uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+              with:
+                  ref: ${{ github.sha }}
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - name: Set up Node.js 24
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version: 24
+                  cache: npm
+                  cache-dependency-path: vrc-get-gui/package-lock.json
+
+            - name: Set up pinned Rust toolchain
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  toolchain="$(jq -r '.releaseAutomation.rustToolchain' alcomd3.config.json)"
+                  target="$(jq -r '.releasePlatforms["darwin-aarch64"].target' alcomd3.config.json)"
+                  rustup toolchain install "$toolchain" --profile minimal --target "$target" --no-self-update
+                  rustup default "$toolchain"
+
+            - name: Build release tooling
+              shell: bash
+              run: cargo build --profile xtask --package xtask
+
+            - name: Install GUI dependencies
+              working-directory: vrc-get-gui
+              shell: bash
+              run: npm ci
+
+            - name: Build ad-hoc signed macOS release shard
+              shell: bash
+              run: >-
+                  ./target/xtask/xtask release-build
+                  --version "$VERSION"
+                  --channel "$CHANNEL"
+                  --platform darwin-aarch64
+                  --skip-validation
+                  --github-actions-release
+
+            - name: Upload macOS shard
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: alcomd3-release-macos-v${{ inputs.version }}-${{ github.run_attempt }}
+                  path: |
+                      artifacts/release/v${{ inputs.version }}/
+                      artifacts/release-state/v${{ inputs.version }}/darwin-aarch64.json
+                  if-no-files-found: error
+                  retention-days: 7
+                  compression-level: 0
+
+    build-linux:
+        name: Build Linux x64 shard
+        needs: preflight
+        runs-on: ubuntu-24.04
+        timeout-minutes: 150
+
+        steps:
+            - name: Checkout pinned release source
+              uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+              with:
+                  ref: ${{ github.sha }}
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - name: Install Linux desktop dependencies
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  sudo apt-get update
+                  sudo apt-get install --yes --no-install-recommends \
+                      build-essential \
+                      curl \
+                      file \
+                      libayatana-appindicator3-dev \
+                      librsvg2-dev \
+                      libssl-dev \
+                      libwebkit2gtk-4.1-dev \
+                      libxdo-dev \
+                      wget
+
+            - name: Set up Node.js 24
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version: 24
+                  cache: npm
+                  cache-dependency-path: vrc-get-gui/package-lock.json
+
+            - name: Set up pinned Rust toolchain
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  toolchain="$(jq -r '.releaseAutomation.rustToolchain' alcomd3.config.json)"
+                  target="$(jq -r '.releasePlatforms["linux-x86_64"].target' alcomd3.config.json)"
+                  rustup toolchain install "$toolchain" --profile minimal --target "$target" --no-self-update
+                  rustup default "$toolchain"
+
+            - name: Install GUI dependencies
+              working-directory: vrc-get-gui
+              shell: bash
+              run: npm ci
+
+            - name: Build Linux release shard
+              shell: bash
+              run: >-
+                  cargo xtask release-build
+                  --version "$VERSION"
+                  --channel "$CHANNEL"
+                  --platform linux-x86_64
+                  --skip-validation
+                  --github-actions-release
+
+            - name: Upload Linux shard
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: alcomd3-release-linux-v${{ inputs.version }}-${{ github.run_attempt }}
+                  path: |
+                      artifacts/release/v${{ inputs.version }}/
+                      artifacts/release-state/v${{ inputs.version }}/linux-x86_64.json
+                  if-no-files-found: error
+                  retention-days: 7
+                  compression-level: 0
+
+    assemble-draft:
+        name: Sign, assemble, and create Draft
+        needs:
+            - build-windows
+            - build-macos
+            - build-linux
+        runs-on: windows-2025
+        timeout-minutes: 45
+        permissions:
+            contents: write
+        env:
+            XTASK_PATH: target\x86_64-pc-windows-msvc\xtask\xtask.exe
+
+        steps:
+            - name: Checkout pinned release source
+              uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+              with:
+                  ref: ${{ github.sha }}
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - name: Download all platform shards
+              uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+              with:
+                  pattern: alcomd3-release-*-v${{ inputs.version }}-${{ github.run_attempt }}
+                  path: artifacts
+                  merge-multiple: true
+
+            - name: Set up pinned Rust toolchain
+              shell: pwsh
+              run: |
+                  $config = Get-Content alcomd3.config.json -Raw | ConvertFrom-Json
+                  $toolchain = $config.releaseAutomation.rustToolchain
+                  rustup toolchain install $toolchain --profile minimal --target x86_64-pc-windows-msvc --no-self-update
+                  rustup default $toolchain
+
+            - name: Build release tooling without Secrets
+              shell: pwsh
+              run: cargo build --profile xtask --target x86_64-pc-windows-msvc --package xtask
+
+            - name: Verify updater signing key
+              env:
+                  ALCOMD3_UPDATER_PRIVATE_KEY: ${{ secrets.ALCOMD3_UPDATER_PRIVATE_KEY }}
+                  ALCOMD3_UPDATER_PRIVATE_KEY_PASSWORD: ${{ secrets.ALCOMD3_UPDATER_PRIVATE_KEY_PASSWORD }}
+              shell: pwsh
+              run: '& $env:XTASK_PATH verify-alcom-updater-key'
+
+            - name: Verify shards, sign updater payloads, and assemble manifest
+              env:
+                  ALCOMD3_UPDATER_PRIVATE_KEY: ${{ secrets.ALCOMD3_UPDATER_PRIVATE_KEY }}
+                  ALCOMD3_UPDATER_PRIVATE_KEY_PASSWORD: ${{ secrets.ALCOMD3_UPDATER_PRIVATE_KEY_PASSWORD }}
+              shell: pwsh
+              run: >-
+                  & $env:XTASK_PATH release-assemble
+                  --version $env:VERSION
+                  --channel $env:CHANNEL
+                  --source-sha $env:SOURCE_SHA
+                  --github-actions-release
+
+            - name: Create or update draft release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  REPLACE_EXISTING_DRAFT: ${{ inputs.replace_existing_draft }}
+              shell: pwsh
+              run: |
+                  $arguments = @(
+                      "release-publish",
+                      "--version", $env:VERSION,
+                      "--channel", $env:CHANNEL,
+                      "--source-sha", $env:SOURCE_SHA
+                  )
+                  if ($env:REPLACE_EXISTING_DRAFT -eq "true") {
+                      $arguments += "--replace-assets"
+                  }
+                  & $env:XTASK_PATH @arguments
+                  if ($LASTEXITCODE -ne 0) {
+                      exit $LASTEXITCODE
+                  }
+
+            - name: Record release draft summary
+              continue-on-error: true
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              shell: pwsh
+              run: |
+                  $json = gh release view "v$env:VERSION" `
+                      --repo $env:GITHUB_REPOSITORY `
+                      --json url,name,isDraft,isPrerelease,targetCommitish,assets
+                  if ($LASTEXITCODE -ne 0) {
+                      exit $LASTEXITCODE
+                  }
+                  $release = $json | ConvertFrom-Json
+                  $lines = @(
+                      "## Release Draft",
+                      "",
+                      "| Field | Value |",
+                      "| --- | --- |",
+                      "| Release | [$($release.name)]($($release.url)) |",
+                      "| Source SHA | $env:SOURCE_SHA |",
+                      "| Target SHA | $($release.targetCommitish) |",
+                      "| Draft | $($release.isDraft) |",
+                      "| Prerelease | $($release.isPrerelease) |",
+                      "",
+                      "### Assets",
+                      "",
+                      "| Asset | Digest |",
+                      "| --- | --- |"
+                  )
+                  foreach ($asset in $release.assets) {
+                      $digest = if ([string]::IsNullOrWhiteSpace($asset.digest)) {
+                          "Unavailable"
+                      } else {
+                          $asset.digest
+                      }
+                      $lines += "| $($asset.name) | $digest |"
+                  }
+                  $lines | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append

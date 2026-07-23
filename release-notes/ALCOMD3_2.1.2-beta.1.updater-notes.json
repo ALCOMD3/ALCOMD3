@@ -1,0 +1,9 @@
+{
+    "en": "Adds Windows x64, Apple Silicon macOS, and Linux x64 packages with signed beta updates. The macOS build is not Apple-notarized and requires Open Anyway on first launch. Stable remains on 2.1.1.",
+    "de": "Fügt Pakete für Windows x64, Apple Silicon macOS und Linux x64 mit signierten Beta-Updates hinzu. Der macOS-Build ist nicht von Apple notarisiert und erfordert beim ersten Start „Dennoch öffnen“. Stable bleibt auf 2.1.1.",
+    "fr": "Ajoute des paquets Windows x64, macOS Apple Silicon et Linux x64 avec des mises à jour bêta signées. La version macOS n'est pas notariée par Apple et nécessite « Ouvrir quand même » au premier lancement. Stable reste en 2.1.1.",
+    "ja": "Windows x64、Apple Silicon macOS、Linux x64 向け package と署名済み beta update を追加しました。macOS 版は Apple notarization 未実施のため、初回起動時に「このまま開く」が必要です。stable は 2.1.1 のままです。",
+    "ko": "Windows x64, Apple Silicon macOS 및 Linux x64 패키지와 서명된 베타 업데이트를 추가합니다. macOS 빌드는 Apple 공증을 받지 않아 처음 실행할 때 ‘확인 없이 열기’가 필요합니다. stable은 2.1.1로 유지됩니다.",
+    "zh_hans": "新增 Windows x64、Apple Silicon macOS 和 Linux x64 软件包及已签名的 beta 更新。macOS 版未经 Apple 公证，首次启动需在隐私与安全性中选择“仍要打开”。stable 保持 2.1.1。",
+    "zh_hant": "新增 Windows x64、Apple Silicon macOS 和 Linux x64 軟體包及已簽署的 beta 更新。macOS 版未經 Apple 公證，首次啟動需在隱私權與安全性中選擇「仍要打開」。stable 維持 2.1.1。"
+}

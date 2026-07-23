@@ -1,0 +1,9 @@
+{
+    "en": "Keeps installed packages visible during legacy-package handling and VRChat SDK filtering, and correctly alternates row backgrounds in filtered package lists.",
+    "de": "Installierte Pakete bleiben bei der Verarbeitung von Legacy-Paketen und der VRChat-SDK-Filterung sichtbar; in gefilterten Paketlisten wechseln die Zeilenhintergründe wieder korrekt.",
+    "fr": "Les paquets installés restent visibles lors du traitement des paquets legacy et du filtrage lié au SDK VRChat ; dans les listes filtrées, les arrière-plans de lignes alternent désormais correctement.",
+    "ja": "legacy package の処理や VRChat SDK による一覧の絞り込みでもインストール済みパッケージを表示し、絞り込み後の行背景を正しく交互に表示します。",
+    "ko": "legacy package 처리나 VRChat SDK 목록 필터링 중에도 설치된 패키지를 표시하고, 필터링된 목록의 행 배경을 올바르게 번갈아 표시합니다.",
+    "zh_hans": "在处理 legacy package 或按 VRChat SDK 筛选列表时保留已安装软件包，并让筛选后的列表保持正确的交替行背景。",
+    "zh_hant": "在處理 legacy package 或依 VRChat SDK 篩選清單時保留已安裝套件，並讓篩選後的清單維持正確的交替列背景。"
+}

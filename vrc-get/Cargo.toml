@@ -1,0 +1,49 @@
+[package]
+name = "vrc-get"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+description = "Open Source command line client of VRChat Package Manager."
+readme = "README.md"
+keywords = ["vpm", "package-manager"]
+categories = ["command-line-utilities"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anstyle = "1"
+clap = { version = "4", features = ["derive"] }
+clap_complete = "4"
+color-print = "0.3"
+env_logger = "0.11"
+futures = "0.3"
+indexmap = { version = "2", features = ["serde"] }
+itertools = "0.15"
+log = "0.4"
+reqwest = { version = "0.13", features = ["charset", "http2", "system-proxy"], default-features = false }
+serde = { version = "1", features = ["derive", "rc"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs"] }
+
+[dependencies.vrc-get-vpm]
+path = "../vrc-get-vpm"
+default-features = false
+
+[build-dependencies]
+home = "0.5"
+
+[features]
+default = ["rustls"]
+native-tls = ["vrc-get-vpm/native-tls"]
+rustls = ["vrc-get-vpm/rustls"]
+
+experimental-vcc = ["vrc-get-vpm/experimental-project-management", "vrc-get-vpm/experimental-unity-management"]
+
+# binstall support
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ target }-{ name }{ binary-ext }"
+pkg-fmt = "bin"

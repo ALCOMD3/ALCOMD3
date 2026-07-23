@@ -1,0 +1,9 @@
+[Desktop Entry]
+Categories=Development
+Comment=ALCOMD3 - Alternative Creator Companion
+Exec={{exec}} %u
+Icon=alcomd3
+Name=ALCOMD3
+Terminal=false
+Type=Application
+MimeType=x-scheme-handler/vcc

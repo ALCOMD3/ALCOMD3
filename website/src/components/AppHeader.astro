@@ -1,0 +1,113 @@
+---
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { languageKeys, languageNames, locales, type LocaleContent } from "@/data/site";
+import { siteConfig } from "@/data/site.config.mjs";
+import { defaultThemeMode } from "@/data/ui-preferences";
+
+type Props = {
+    locale: LocaleContent;
+    pagePath?: string;
+};
+
+const { locale, pagePath = "" } = Astro.props;
+const themeOptions = [
+    {
+        value: "system",
+        label: locale.appearanceSystem,
+        icon: "contrast",
+    },
+    {
+        value: "light",
+        label: locale.appearanceLight,
+        icon: "light_mode",
+    },
+    {
+        value: "dark",
+        label: locale.appearanceDark,
+        icon: "dark_mode",
+    },
+];
+---
+
+<header class="transparent">
+    <nav>
+        <a class="no-wave" href="/" aria-label="ALCOMD3">
+            <img class="medium circle" src="/assets/logo.png" alt="" aria-hidden="true">
+            <span class="m l h5 small bold">ALCOMD3</span>
+        </a>
+        <div class="max"></div>
+        <a
+            class="button round primary-container"
+            href="https://vrcal.cqmhv.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={locale.vrcalLink}
+        >
+            <img class="tiny round" src="/assets/vrcal-logo-square.svg" alt="" aria-hidden="true">
+            <span class="m l">{locale.vrcalLink}</span>
+        </a>
+        <div>
+            <button
+                class="circle primary-container"
+                type="button"
+                aria-label={locale.languageLabel}
+                aria-haspopup="menu"
+                aria-controls="language-menu"
+                data-ui="#language-menu"
+            >
+                <i>translate</i>
+            </button>
+            <menu class="left no-wrap" id="language-menu" aria-label={locale.languageLabel}>
+                {languageKeys.map((language) => (
+                    <li
+                        data-language={language}
+                        data-ui-locale={locales[language].uiLocale}
+                        data-route={getRelativeLocaleUrl(language, pagePath)}
+                        class:list={[{ active: language === locale.lang }]}
+                        aria-selected={language === locale.lang ? "true" : "false"}
+                    >
+                        <a href={getRelativeLocaleUrl(language, pagePath)}>
+                            {languageNames[language]}
+                        </a>
+                    </li>
+                ))}
+            </menu>
+        </div>
+        <div>
+            <button
+                class="circle primary-container"
+                type="button"
+                aria-label={locale.appearanceLabel}
+                aria-haspopup="menu"
+                aria-controls="theme-menu"
+                data-ui="#theme-menu"
+            >
+                <i>contrast</i>
+            </button>
+            <menu class="left no-wrap" id="theme-menu" aria-label={locale.appearanceLabel}>
+                {themeOptions.map((item) => (
+                    <li
+                        data-theme-mode-value={item.value}
+                        data-theme-mode-label={item.label}
+                        class:list={[{ active: item.value === defaultThemeMode }]}
+                        aria-selected={item.value === defaultThemeMode ? "true" : "false"}
+                    >
+                        <i>{item.icon}</i>
+                        <span>{item.label}</span>
+                    </li>
+                ))}
+            </menu>
+        </div>
+        <a
+            class="button circle primary-container"
+            href={siteConfig.repositoryUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={locale.githubLabel}
+        >
+            <svg class="small" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 2C6.48 2 2 6.59 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.09.68-.22.68-.49v-1.9c-2.78.62-3.37-1.22-3.37-1.22-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.89 1.57 2.34 1.12 2.91.86.09-.66.35-1.12.63-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.3 9.3 0 0 1 12 6.97c.85 0 1.7.12 2.5.34 1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.07.36.32.68.95.68 1.92v2.84c0 .27.18.59.69.49A10.13 10.13 0 0 0 22 12.25C22 6.59 17.52 2 12 2Z"></path>
+            </svg>
+        </a>
+    </nav>
+</header>

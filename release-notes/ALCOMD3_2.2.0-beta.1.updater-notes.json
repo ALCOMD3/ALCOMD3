@@ -1,0 +1,9 @@
+{
+    "en": "Adds next-launch automatic updates with reliable recovery, named backup and restore workflows, per-backup package exclusion, Shift-click range selection, repository sorting mode, improved logs and Extensions navigation, and clearer platform download cards.",
+    "de": "Fügt automatische Updates beim nächsten Start mit zuverlässiger Wiederherstellung, benannte Sicherungs- und Wiederherstellungsabläufe, Paketausschluss pro Sicherung, Bereichsauswahl per Umschaltklick, einen Sortiermodus für Repositorys, eine verbesserte Navigation für Protokolle und Erweiterungen sowie übersichtlichere Plattform-Downloadkarten hinzu.",
+    "fr": "Ajoute les mises à jour automatiques au prochain démarrage avec récupération fiable, le nommage des sauvegardes et restaurations, l’exclusion des paquets par sauvegarde, la sélection de plage par Maj-clic, un mode de tri des dépôts, une meilleure navigation des journaux et extensions, ainsi que des cartes de téléchargement par plateforme plus claires.",
+    "ja": "次回起動時の自動更新と信頼性の高い復旧、バックアップと復元時の名前指定、バックアップごとのパッケージ除外、Shift クリックによる範囲選択、リポジトリ並べ替えモード、ログと拡張機能のナビゲーション改善、分かりやすいプラットフォーム別ダウンロードカードを追加しました。",
+    "ko": "다음 실행 시 자동 업데이트와 안정적인 복구, 백업 및 복원 이름 지정, 백업별 패키지 제외, Shift 클릭 범위 선택, 저장소 정렬 모드, 로그 및 확장 기능 탐색 개선, 더 명확한 플랫폼별 다운로드 카드를 추가했습니다.",
+    "zh_hans": "新增下次启动时自动更新及可靠恢复、备份和恢复命名、逐次备份的软件包排除、Shift 单击范围选择、仓库排序模式、改进的日志和扩展导航，以及更清晰的平台下载卡片。",
+    "zh_hant": "新增下次啟動時自動更新及可靠復原、備份和還原命名、逐次備份的套件排除、Shift 點擊範圍選取、儲存庫排序模式、改進的記錄和擴充功能導覽，以及更清晰的平台下載卡片。"
+}

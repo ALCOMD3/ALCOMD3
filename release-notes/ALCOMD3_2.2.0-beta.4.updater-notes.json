@@ -1,0 +1,9 @@
+{
+    "en": "Restores automatic updates so enabled updates download without confirmation, remain ready for installation, and install on the next launch if deferred, while manually confirmed updates install after downloading.",
+    "de": "Stellt automatische Updates wieder her: Aktivierte Updates werden ohne Bestätigung heruntergeladen, bleiben installationsbereit und werden bei Aufschub beim nächsten Start installiert; manuell bestätigte Updates werden nach dem Download installiert.",
+    "fr": "Rétablit les mises à jour automatiques : elles se téléchargent sans confirmation, restent prêtes à être installées et s’installent au prochain démarrage si elles sont reportées, tandis que les mises à jour confirmées manuellement s’installent après le téléchargement.",
+    "ja": "自動更新を復元し、有効時は確認なしでダウンロードしてインストール可能な状態で保持し、保留した場合は次回起動時にインストールします。手動で確認した更新はダウンロード後にインストールします。",
+    "ko": "자동 업데이트를 복원하여 활성화된 업데이트를 확인 없이 다운로드하고 설치 가능한 상태로 유지하며, 미룬 경우 다음 시작 시 설치합니다. 수동으로 확인한 업데이트는 다운로드 후 설치됩니다.",
+    "zh_hans": "恢复自动更新流程：开启后免确认下载更新并保留为可安装状态，暂不安装时会在下次启动时安装；手动确认的更新则在下载完成后安装。",
+    "zh_hant": "恢復自動更新流程：開啟後免確認下載更新並保留為可安裝狀態，暫不安裝時會在下次啟動時安裝；手動確認的更新則在下載完成後安裝。"
+}

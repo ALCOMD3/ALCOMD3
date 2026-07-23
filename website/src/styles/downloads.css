@@ -1,0 +1,93 @@
+main.responsive.download-page-main {
+    inline-size: 100%;
+}
+
+.download-section {
+    scroll-margin-block-start: 1rem;
+}
+
+.download-channel-list {
+    display: grid;
+    gap: 2rem;
+    margin-block-start: 1.5rem;
+}
+
+.download-channel {
+    min-inline-size: 0;
+}
+
+.download-channel-notice {
+    align-items: flex-start;
+    border-radius: 0.75rem;
+    display: flex;
+    gap: 0.75rem;
+    margin-block-start: 1rem;
+    padding: 1rem;
+}
+
+.download-platform-grid {
+    --download-platform-card-inline-size: 20.5rem;
+
+    column-gap: clamp(1.875rem, 3.125%, 2rem);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-block: 1.5rem;
+    row-gap: 2rem;
+}
+
+.download-platform-card {
+    display: flex;
+    flex: 0 1 var(--download-platform-card-inline-size);
+    flex-direction: column;
+    inline-size: var(--download-platform-card-inline-size);
+    max-inline-size: 100%;
+    min-block-size: 26rem;
+    min-inline-size: 0;
+}
+
+.download-platform-card[data-download-platform-match] {
+    outline: 0.1875rem solid var(--primary);
+    outline-offset: 0.25rem;
+}
+
+.download-platform-brand {
+    align-items: center;
+    align-self: center;
+    display: flex;
+    inline-size: 100%;
+    justify-content: center;
+    margin-block: 1rem;
+    max-inline-size: 8rem;
+    min-block-size: 6rem;
+}
+
+.download-platform-brand .platform-brand-icon {
+    block-size: 4rem;
+    fill: currentcolor;
+    flex: 0 0 4rem;
+    inline-size: 4rem;
+}
+
+.download-platform-card .download-actions {
+    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-block-start: auto;
+    padding-block-start: 1rem;
+}
+
+.download-platform-card .download-actions > a {
+    block-size: auto;
+    min-block-size: 3rem;
+    white-space: normal;
+}
+
+.download-unavailable {
+    align-items: center;
+    display: flex;
+    gap: 0.5rem;
+    margin-block-start: auto;
+    padding-block-start: 1rem;
+}

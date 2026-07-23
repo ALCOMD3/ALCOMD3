@@ -1,0 +1,9 @@
+{
+    "en": "ALCOMD3 2.1.1 updates the Windows desktop runtime, maintains local MCP task compatibility, widens the default window, and refreshes the MCP navigation icon. No data migration is required from 2.1.0.",
+    "de": "ALCOMD3 2.1.1 aktualisiert die Windows-Desktop-Laufzeit, erhält die Kompatibilität lokaler MCP-Aufgaben, verbreitert das Standardfenster und erneuert das MCP-Navigationssymbol. Beim Upgrade von 2.1.0 ist keine Datenmigration erforderlich.",
+    "fr": "ALCOMD3 2.1.1 met à jour l'environnement d'exécution Windows, maintient la compatibilité des tâches MCP locales, élargit la fenêtre par défaut et actualise l'icône de navigation MCP. Aucune migration de données n'est requise depuis la version 2.1.0.",
+    "ja": "ALCOMD3 2.1.1 は Windows デスクトップランタイムを更新し、ローカル MCP タスクとの互換性を維持し、既定のウィンドウ幅と MCP ナビゲーションアイコンを改善します。2.1.0 からのデータ移行は不要です。",
+    "ko": "ALCOMD3 2.1.1은 Windows 데스크톱 런타임을 업데이트하고 로컬 MCP 작업 호환성을 유지하며 기본 창 너비와 MCP 탐색 아이콘을 개선합니다. 2.1.0에서 업그레이드할 때 데이터 마이그레이션은 필요하지 않습니다.",
+    "zh_hans": "ALCOMD3 2.1.1 更新 Windows 桌面运行时，保持本地 MCP 任务兼容性，调整默认窗口宽度并更新 MCP 导航图标。从 2.1.0 升级无需迁移数据。",
+    "zh_hant": "ALCOMD3 2.1.1 更新 Windows 桌面執行環境，維持本機 MCP 工作相容性，調整預設視窗寬度並更新 MCP 導覽圖示。從 2.1.0 升級無需移轉資料。"
+}

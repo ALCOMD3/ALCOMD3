@@ -1,0 +1,9 @@
+{
+    "en": "Fixes WebView2 setup on clean Windows systems and bundles libjpeg/libbz2 in the Linux AppImage to resolve Fedora startup failures. The macOS build remains ad-hoc signed, not Apple-notarized, and may require Open Anyway on first launch.",
+    "de": "Behebt die WebView2-Einrichtung auf sauberen Windows-Systemen und bündelt libjpeg/libbz2 im Linux-AppImage, um Startfehler unter Fedora zu beheben. Der macOS-Build bleibt ad-hoc signiert, ist nicht von Apple notarisiert und kann beim ersten Start „Dennoch öffnen“ erfordern.",
+    "fr": "Corrige l’installation de WebView2 sur les systèmes Windows propres et inclut libjpeg/libbz2 dans l’AppImage Linux afin de résoudre les échecs de démarrage sous Fedora. La version macOS reste signée ad hoc, non notariée par Apple, et peut nécessiter « Ouvrir quand même » au premier lancement.",
+    "ja": "WebView2 未導入の Windows で runtime setup を起動できない問題を修正し、Linux AppImage に libjpeg/libbz2 を同梱して Fedora での起動失敗を解消しました。macOS 版は引き続き ad-hoc 署名済みですが Apple notarization 未実施のため、初回起動時に「このまま開く」が必要な場合があります。",
+    "ko": "WebView2가 설치되지 않은 Windows에서 런타임 설치 프로그램이 시작되지 않던 문제를 수정하고, Linux AppImage에 libjpeg/libbz2를 포함해 Fedora 시작 오류를 해결합니다. macOS 빌드는 계속 ad-hoc 서명되었지만 Apple 공증을 받지 않아 처음 실행할 때 ‘확인 없이 열기’가 필요할 수 있습니다.",
+    "zh_hans": "修复未预装 WebView2 的 Windows 环境无法启动运行时安装程序的问题，并在 Linux AppImage 中包含 libjpeg/libbz2，解决 Fedora 上的启动失败。macOS 版仍采用 ad-hoc 签名且未经 Apple 公证，首次启动时可能需要选择“仍要打开”。",
+    "zh_hant": "修復未預裝 WebView2 的 Windows 環境無法啟動執行階段安裝程式的問題，並在 Linux AppImage 中包含 libjpeg/libbz2，解決 Fedora 上的啟動失敗。macOS 版仍採用 ad-hoc 簽署且未經 Apple 公證，首次啟動時可能需要選擇「仍要打開」。"
+}

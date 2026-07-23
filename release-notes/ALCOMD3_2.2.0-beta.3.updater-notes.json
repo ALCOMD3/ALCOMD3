@@ -1,0 +1,9 @@
+{
+    "en": "Completes the Windows identity migration by restoring replacement shortcuts, removing the legacy WebView profile, and assigning ALCOMD3 a stable Shell identity while preserving application data.",
+    "de": "Schließt die Windows-Identitätsmigration ab: Ersatzverknüpfungen werden wiederhergestellt, das alte WebView-Profil wird entfernt und ALCOMD3 erhält eine stabile Shell-Identität, während App-Daten erhalten bleiben.",
+    "fr": "Finalise la migration d’identité Windows en restaurant les raccourcis de remplacement, en supprimant l’ancien profil WebView et en attribuant à ALCOMD3 une identité Shell stable, tout en préservant les données de l’application.",
+    "ja": "代替ショートカットを復元し、旧 WebView プロファイルを削除して、アプリデータを保持しながら ALCOMD3 に安定した Windows Shell ID を設定し、Windows の ID 移行を完了します。",
+    "ko": "대체 바로 가기를 복원하고 이전 WebView 프로필을 제거하며 앱 데이터를 유지한 채 ALCOMD3에 안정적인 Windows Shell ID를 부여해 Windows ID 마이그레이션을 완료합니다.",
+    "zh_hans": "通过恢复替代快捷方式、删除旧 WebView 配置目录并为 ALCOMD3 设置稳定的 Shell 身份，在保留应用数据的同时完成 Windows 身份迁移。",
+    "zh_hant": "透過還原替代捷徑、刪除舊 WebView 設定目錄並為 ALCOMD3 設定穩定的 Shell 身分，在保留應用程式資料的同時完成 Windows 身分移轉。"
+}

@@ -1,0 +1,10 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+/gen
+
+/out/
+/build/
+/vite-dev.err.log
+/vite-dev.out.log

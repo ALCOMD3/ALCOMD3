@@ -1,0 +1,41 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "alcomd3-app-paths",
+    "alcomd3-mcp",
+    "alcomd3-mcp-protocol",
+    "xtask",
+    "vrc-get",
+    "vrc-get-gui",
+    "vrc-get-gui/windows-installer-wrapper",
+    "vrc-get-vpm",
+]
+
+# Keep the default workspace check focused on the CLI and VPM library.
+# GUI, MCP bridge, release tooling, and installer wrapper have dedicated build
+# commands because they need frontend, packaging, or release-specific setup.
+default-members = [
+    "vrc-get",
+    "vrc-get-vpm",
+]
+
+[workspace.package]
+version = "2.2.0-beta.6"
+edition = "2024"
+
+license = "AGPL-3.0-or-later"
+authors = [
+    "anatawa12 <anatawa12@icloud.com>",
+    "CQMHV and ALCOMD3 contributors",
+]
+homepage = "https://alcomd3.cqmhv.com/"
+repository = "https://github.com/ALCOMD3/ALCOMD3"
+readme = "README.md"
+
+[profile.xtask]
+inherits = "dev"
+incremental = false
+debug = 1
+opt-level = 0
+lto = "off"

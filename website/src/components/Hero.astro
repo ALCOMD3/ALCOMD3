@@ -1,0 +1,61 @@
+---
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { siteConfig, type DownloadChannel, type LocaleContent } from "@/data/site";
+
+type Props = {
+    locale: LocaleContent;
+};
+
+const { locale } = Astro.props;
+const stableDownloads = siteConfig.stableRelease;
+const stableChannel = locale.downloads.channels[stableDownloads.channel as DownloadChannel];
+const stableRelease = locale.downloads.channelVersion
+    .replace("{channel}", stableChannel.name)
+    .replace("{version}", stableDownloads.version);
+const downloadHref = getRelativeLocaleUrl(locale.lang, siteConfig.downloadPath);
+---
+
+<section class="row wrap middle-align large-space large-padding" aria-labelledby="site-title">
+    <div class="center-align">
+        <div class="shape sided-cookie12 small-width small-height primary-container rotate">
+            <img class="responsive" src="/assets/logo-shape.png" alt="ALCOMD3 Logo">
+        </div>
+    </div>
+    <div class="max">
+        <p class="small-text bold upper primary-text">{locale.productSubtitle}</p>
+        <h1 class="large" id="site-title">ALCOMD3</h1>
+        <p class="large-text large-line">{locale.tagline}</p>
+        <div class="row wrap medium-space">
+            <a
+                class="button large round primary-container"
+                id="download-button"
+                href={downloadHref}
+                aria-describedby="download-note"
+            >
+                <i>download</i>
+                <span>{locale.downloads.sectionTitle}</span>
+            </a>
+            <div class="row medium-space">
+                <a
+                    class="button large round secondary-container"
+                    href="https://cqmhv.booth.pm/items/8408577"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    <img class="tiny round" src="/assets/booth-logo.png" alt="" aria-hidden="true">
+                    <span>{locale.booth}</span>
+                </a>
+                <a
+                    class="button large round secondary-container"
+                    href="https://cqmhv.gumroad.com/l/alcomd3"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    <img class="tiny circle" src="/assets/gumroad-logo.svg" alt="" aria-hidden="true">
+                    <span>{locale.gumroad}</span>
+                </a>
+            </div>
+        </div>
+        <p id="download-note">{stableRelease}</p>
+    </div>
+</section>
