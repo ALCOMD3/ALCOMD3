@@ -1,0 +1,9 @@
+{
+    "en": "Starts the independent ALCOMD3 3.0 release line and simplifies contributor loading through the GitHub API.",
+    "de": "Startet die unabhängige ALCOMD3-3.0-Versionsreihe und vereinfacht das Laden der Mitwirkenden über die GitHub-API.",
+    "fr": "Lance la série indépendante ALCOMD3 3.0 et simplifie le chargement des contributeurs via l’API GitHub.",
+    "ja": "独立した ALCOMD3 3.0 のリリース系列を開始し、GitHub API によるコントリビューター取得を簡素化します。",
+    "ko": "독립적인 ALCOMD3 3.0 릴리스 계열을 시작하고 GitHub API를 통한 기여자 정보 로드를 단순화합니다.",
+    "zh_hans": "开启独立的 ALCOMD3 3.0 发布序列，并通过 GitHub API 简化贡献者信息加载。",
+    "zh_hant": "開啟獨立的 ALCOMD3 3.0 發佈序列，並透過 GitHub API 簡化貢獻者資訊載入。"
+}

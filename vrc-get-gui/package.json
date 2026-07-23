@@ -1,6 +1,6 @@
 {
 	"name": "vrc-get-gui",
-	"version": "2.2.0-beta.6",
+	"version": "3.0.0-beta.1",
 	"type": "module",
 	"private": true,
 	"overrides": {
