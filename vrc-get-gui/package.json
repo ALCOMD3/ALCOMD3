@@ -9,9 +9,8 @@
 	},
 	"scripts": {
 		"tauri": "tauri",
-		"contributors:sync": "node ../scripts/sync-contributors.mjs",
 		"dev": "vite",
-		"build": "npm run contributors:sync && vite build",
+		"build": "vite build",
 		"format": "biome format",
 		"check": "biome check && npm run check:locales",
 		"check:locales": "node scripts/check-locales.mjs",

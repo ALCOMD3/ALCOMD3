@@ -183,22 +183,15 @@ Important areas:
 
 ### Contributor data
 
-The app and Website share `generated/alcomd3-contributors.json` as their
-build-time contributor snapshot. Both frontend build commands run
-`scripts/sync-contributors.mjs` before bundling. The script reads the same
-`contributors_list` fragment that GitHub renders on the ALCOMD3 repository
-home page, preserving GitHub's visible list and order without maintaining a
-separate commit-history heuristic.
+The app and Website request GitHub's public repository contributors REST
+endpoint directly. GitHub orders this response by commit count and may cache
+it for several hours.
 
-- Do not edit the generated snapshot by hand.
-- When GitHub is temporarily unavailable, builds retain the last valid
-  snapshot.
-- `website/functions/api/contributors.js` exposes that GitHub fragment as a
-  validated, short-lived JSON response. The app and Website use it for runtime
-  refreshes and fall back to the bundled snapshot on failure.
-- PR authors appear as soon as GitHub includes them in the repository home
-  page contributor list. Do not add a separate allowlist or inherited-history
-  filter.
+- Keep the request unauthenticated and limited to the first 100 contributors.
+- Do not add a generated snapshot, proxy, allowlist, or manually maintained
+  contributor data.
+- Hide the contributor section when GitHub is unavailable or returns no valid
+  contributors.
 
 ### Icons and third-party notices
 

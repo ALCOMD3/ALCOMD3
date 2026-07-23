@@ -1,51 +1,23 @@
 ---
 import { siteConfig, type LocaleContent } from "@/data/site";
-import contributorSnapshot from "../../../generated/alcomd3-contributors.json";
 
 type Props = {
     locale: LocaleContent;
 };
 
 const { locale } = Astro.props;
-const bundledContributors = contributorSnapshot.contributors;
 ---
 
 <div
     data-contributors-section
     data-contributors-api-url={siteConfig.contributorsApiUrl}
-    data-contributors-repository={contributorSnapshot.repository}
-    data-contributors-source={bundledContributors.length > 0 ? "snapshot" : undefined}
-    hidden={bundledContributors.length === 0}
+    hidden
 >
     <div class="large-divider"></div>
     <section class="large-padding center-align" aria-labelledby="contributors-title">
         <h2 class="large-title" id="contributors-title">{locale.contributorsTitle}</h2>
         <div class="space"></div>
         <div class="row wrap center-align middle-align small-space" data-contributors-list>
-            {bundledContributors.map((contributor) => (
-                <a
-                    aria-label={contributor.name}
-                    class="no-wave"
-                    data-contributor-link
-                    href={contributor.profileUrl}
-                    referrerpolicy="no-referrer"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                    title={contributor.name}
-                >
-                    <img
-                        alt=""
-                        class="large circle border"
-                        decoding="async"
-                        height="56"
-                        loading="lazy"
-                        referrerpolicy="no-referrer"
-                        src={contributor.avatarUrl}
-                        width="56"
-                    />
-                    <div class="tooltip">{contributor.name}</div>
-                </a>
-            ))}
         </div>
     </section>
 </div>
@@ -55,12 +27,6 @@ const bundledContributors = contributorSnapshot.contributors;
         avatarUrl: string;
         name: string;
         profileUrl: string;
-    };
-
-    type ContributorsResponse = {
-        contributors?: unknown;
-        repository?: unknown;
-        schemaVersion?: unknown;
     };
 
     function isHttpsUrl(value: unknown): value is string {
@@ -79,21 +45,21 @@ const bundledContributors = contributorSnapshot.contributors;
         if (
             typeof value !== "object"
             || value === null
-            || !("name" in value)
-            || !("avatarUrl" in value)
-            || !("profileUrl" in value)
-            || typeof value.name !== "string"
-            || value.name.length === 0
-            || !isHttpsUrl(value.avatarUrl)
-            || !isHttpsUrl(value.profileUrl)
+            || !("login" in value)
+            || !("avatar_url" in value)
+            || !("html_url" in value)
+            || typeof value.login !== "string"
+            || value.login.length === 0
+            || !isHttpsUrl(value.avatar_url)
+            || !isHttpsUrl(value.html_url)
         ) {
             return null;
         }
 
         return {
-            avatarUrl: value.avatarUrl,
-            name: value.name,
-            profileUrl: value.profileUrl,
+            avatarUrl: value.avatar_url,
+            name: value.login,
+            profileUrl: value.html_url,
         };
     }
 
@@ -130,55 +96,35 @@ const bundledContributors = contributorSnapshot.contributors;
 
     async function fetchContributors(
         apiUrl: string,
-        repository: string,
     ) {
         const response = await fetch(apiUrl, {
             headers: {
-                Accept: "application/json",
+                Accept: "application/vnd.github+json",
             },
         });
         if (!response.ok) {
             throw new Error(`ALCOMD3 contributors request failed: ${response.status}`);
         }
 
-        const responseData = await response.json() as ContributorsResponse;
-        if (
-            responseData.schemaVersion !== 1
-            || responseData.repository !== repository
-            || !Array.isArray(responseData.contributors)
-        ) {
+        const responseData = await response.json() as unknown;
+        if (!Array.isArray(responseData)) {
             throw new Error("ALCOMD3 contributors response is invalid");
         }
 
-        const contributors = responseData.contributors.map(normalizeContributor);
-        if (
-            contributors.length === 0
-            || contributors.some((contributor) => contributor === null)
-        ) {
-            throw new Error("ALCOMD3 contributors response is invalid");
-        }
-
-        const validContributors = contributors as Contributor[];
-        const profileUrls = new Set(
-            validContributors.map((contributor) => contributor.profileUrl),
-        );
-        if (profileUrls.size !== validContributors.length) {
-            throw new Error("ALCOMD3 contributors response is invalid");
-        }
-
-        return validContributors;
+        return responseData
+            .map(normalizeContributor)
+            .filter((contributor): contributor is Contributor => contributor !== null);
     }
 
     document.querySelectorAll<HTMLElement>("[data-contributors-section]").forEach((section) => {
         const apiUrl = section.dataset.contributorsApiUrl;
-        const repository = section.dataset.contributorsRepository;
         const list = section.querySelector<HTMLElement>("[data-contributors-list]");
 
-        if (!apiUrl || !repository || !list) {
+        if (!apiUrl || !list) {
             return;
         }
 
-        fetchContributors(apiUrl, repository)
+        fetchContributors(apiUrl)
             .then((contributors) => {
                 if (contributors.length === 0) {
                     return;
@@ -187,13 +133,9 @@ const bundledContributors = contributorSnapshot.contributors;
                 list.replaceChildren(...contributors.map(createContributorLink));
                 section.hidden = false;
                 section.dataset.contributorsLive = "";
-                section.dataset.contributorsSource = "live";
             })
             .catch((error) => {
-                console.warn(
-                    "Failed to refresh ALCOMD3 contributors; using the bundled build snapshot.",
-                    error,
-                );
+                console.warn("Failed to load ALCOMD3 contributors from GitHub.", error);
             });
     });
 </script>

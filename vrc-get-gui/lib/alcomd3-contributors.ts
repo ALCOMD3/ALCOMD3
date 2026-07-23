@@ -1,25 +1,16 @@
 import alcomd3Config from "../../alcomd3.config.json";
-import contributorSnapshot from "../../generated/alcomd3-contributors.json";
 
 const CONTRIBUTORS_API_URL = new URL(
-	"/api/contributors",
-	alcomd3Config.homepageUrl,
+	`/repos/${alcomd3Config.repository}/contributors`,
+	"https://api.github.com",
 );
+CONTRIBUTORS_API_URL.searchParams.set("per_page", "100");
 
 export type Alcomd3Contributor = {
 	avatarUrl: string;
 	name: string;
 	profileUrl: string;
 };
-
-type ContributorsResponse = {
-	contributors?: unknown;
-	repository?: unknown;
-	schemaVersion?: unknown;
-};
-
-export const bundledAlcomd3Contributors: Alcomd3Contributor[] =
-	contributorSnapshot.contributors;
 
 function isHttpsUrl(value: unknown): value is string {
 	if (typeof value !== "string") {
@@ -37,21 +28,21 @@ function normalizeContributor(value: unknown): Alcomd3Contributor | null {
 	if (
 		typeof value !== "object" ||
 		value === null ||
-		!("name" in value) ||
-		!("avatarUrl" in value) ||
-		!("profileUrl" in value) ||
-		typeof value.name !== "string" ||
-		value.name.length === 0 ||
-		!isHttpsUrl(value.avatarUrl) ||
-		!isHttpsUrl(value.profileUrl)
+		!("login" in value) ||
+		!("avatar_url" in value) ||
+		!("html_url" in value) ||
+		typeof value.login !== "string" ||
+		value.login.length === 0 ||
+		!isHttpsUrl(value.avatar_url) ||
+		!isHttpsUrl(value.html_url)
 	) {
 		return null;
 	}
 
 	return {
-		avatarUrl: value.avatarUrl,
-		name: value.name,
-		profileUrl: value.profileUrl,
+		avatarUrl: value.avatar_url,
+		name: value.login,
+		profileUrl: value.html_url,
 	};
 }
 
@@ -60,39 +51,23 @@ export async function fetchAlcomd3Contributors(
 ): Promise<Alcomd3Contributor[]> {
 	const response = await fetchImpl(CONTRIBUTORS_API_URL, {
 		headers: {
-			Accept: "application/json",
+			Accept: "application/vnd.github+json",
 		},
 	});
 	if (!response.ok) {
 		throw new Error(`ALCOMD3 contributors request failed: ${response.status}`);
 	}
 
-	const responseData = (await response.json()) as ContributorsResponse;
-	if (
-		responseData.schemaVersion !== 1 ||
-		responseData.repository !== alcomd3Config.repository ||
-		!Array.isArray(responseData.contributors)
-	) {
+	const responseData = (await response.json()) as unknown;
+	if (!Array.isArray(responseData)) {
 		throw new Error("ALCOMD3 contributors response is invalid");
 	}
 
-	const contributors = responseData.contributors.map(normalizeContributor);
-	if (
-		contributors.length === 0 ||
-		contributors.some((contributor) => contributor === null)
-	) {
-		throw new Error("ALCOMD3 contributors response is invalid");
-	}
-
-	const validContributors = contributors as Alcomd3Contributor[];
-	const profileUrls = new Set(
-		validContributors.map((contributor) => contributor.profileUrl),
-	);
-	if (profileUrls.size !== validContributors.length) {
-		throw new Error("ALCOMD3 contributors response is invalid");
-	}
-
-	return validContributors;
+	return responseData
+		.map(normalizeContributor)
+		.filter(
+			(contributor): contributor is Alcomd3Contributor => contributor !== null,
+		);
 }
 
 export async function loadAlcomd3Contributors(
@@ -101,10 +76,7 @@ export async function loadAlcomd3Contributors(
 	try {
 		return await fetchAlcomd3Contributors(fetchImpl);
 	} catch (error) {
-		console.warn(
-			"Failed to refresh ALCOMD3 contributors; using the bundled build snapshot.",
-			error,
-		);
-		return bundledAlcomd3Contributors;
+		console.warn("Failed to load ALCOMD3 contributors from GitHub.", error);
+		return [];
 	}
 }

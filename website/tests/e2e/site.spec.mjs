@@ -16,9 +16,6 @@ const stableUpdaterManifest = JSON.parse(await readFile(
 const betaUpdaterManifest = JSON.parse(await readFile(
     new URL("../../public/api/gui/tauri-updater-beta.json", import.meta.url),
 ));
-const contributorSnapshot = JSON.parse(await readFile(
-    new URL("../../../generated/alcomd3-contributors.json", import.meta.url),
-));
 const htmlLanguageByRoute = Object.fromEntries(
     supportedUiLocales.map((locale) => [locale.toLowerCase(), locale]),
 );
@@ -31,18 +28,16 @@ const recommendationPatternByRoute = {
 const loopbackHostnames = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 const externalRequestsByPage = new WeakMap();
 const contributorApiUrl = new URL(siteConfig.contributorsApiUrl);
-const mockedContributors = contributorSnapshot.contributors.slice(0, 1).map(
-    (contributor) => ({
-        avatarUrl: contributor.avatarUrl,
-        name: contributor.name,
-        profileUrl: contributor.profileUrl,
-    }),
-);
+const contributorApiPattern = `${contributorApiUrl.origin}${contributorApiUrl.pathname}**`;
+const mockedContributors = [
+    {
+        avatar_url: "https://avatars.example/cqmhv",
+        html_url: "https://github.com/CQMHV",
+        login: "CQMHV",
+    },
+];
 const mockedContributorAvatarUrls = new Set(
-    [
-        ...mockedContributors.map((contributor) => contributor.avatarUrl),
-        ...contributorSnapshot.contributors.map((contributor) => contributor.avatarUrl),
-    ],
+    mockedContributors.map((contributor) => contributor.avatar_url),
 );
 
 function isExternalHttpRequest(requestUrl) {
@@ -64,14 +59,10 @@ function isMockedContributorRequest(requestUrl) {
 }
 
 async function mockContributorRequests(routingTarget) {
-    await routingTarget.route(`${siteConfig.contributorsApiUrl}**`, async (route) => {
+    await routingTarget.route(contributorApiPattern, async (route) => {
         await route.fulfill({
             contentType: "application/json",
-            body: JSON.stringify({
-                schemaVersion: 1,
-                repository: projectConfig.repository,
-                contributors: mockedContributors,
-            }),
+            body: JSON.stringify(mockedContributors),
         });
     });
     for (const avatarUrl of mockedContributorAvatarUrls) {
@@ -210,13 +201,12 @@ for (const routeLocale of supportedRouteLocales) {
         await expect(page.locator("[data-download-channel-section]")).toHaveCount(0);
         const contributorsSection = page.locator("[data-contributors-section]");
         await expect(contributorsSection).toHaveAttribute("data-contributors-live", "");
-        await expect(contributorsSection).toHaveAttribute("data-contributors-source", "live");
         await expect(contributorsSection.locator("[data-contributor-link]")).toHaveCount(
             mockedContributors.length,
         );
         await expect(
-            contributorsSection.getByRole("link", { name: mockedContributors[0].name }),
-        ).toHaveAttribute("href", mockedContributors[0].profileUrl);
+            contributorsSection.getByRole("link", { name: mockedContributors[0].login }),
+        ).toHaveAttribute("href", mockedContributors[0].html_url);
 
         await gotoLocalPage(page, `/${routeLocale}/${siteConfig.downloadPath}/`);
 
@@ -260,21 +250,17 @@ for (const routeLocale of supportedRouteLocales) {
     });
 }
 
-test("home keeps the build snapshot when the live contributor refresh fails", async ({ page }) => {
-    await page.unroute(`${siteConfig.contributorsApiUrl}**`);
-    await page.route(`${siteConfig.contributorsApiUrl}**`, async (route) => {
+test("home hides contributors when the GitHub request fails", async ({ page }) => {
+    await page.unroute(contributorApiPattern);
+    await page.route(contributorApiPattern, async (route) => {
         await route.fulfill({ status: 429 });
     });
 
     await gotoLocalPage(page, `/${defaultRouteLocale}/`);
 
     const contributorsSection = page.locator("[data-contributors-section]");
-    await expect(contributorsSection).toBeVisible();
-    await expect(contributorsSection).toHaveAttribute("data-contributors-source", "snapshot");
-    await expect(contributorsSection).not.toHaveAttribute("data-contributors-live", /.+/);
-    await expect(contributorsSection.locator("[data-contributor-link]")).toHaveCount(
-        contributorSnapshot.contributors.length,
-    );
+    await expect(contributorsSection).toBeHidden();
+    await expect(contributorsSection.locator("[data-contributor-link]")).toHaveCount(0);
 });
 
 test("root route redirects from the browser locale", async ({ browser }) => {
@@ -552,12 +538,8 @@ test("server-rendered downloads remain usable without JavaScript", async ({ brow
 
     expect(homepageResponse?.ok()).toBe(true);
     await expect(page.locator("[data-contributors-section]")).toHaveCount(1);
-    await expect(page.locator("[data-contributors-section]")).toBeVisible();
-    await expect(page.locator("[data-contributors-section]"))
-        .toHaveAttribute("data-contributors-source", "snapshot");
-    await expect(page.locator("[data-contributor-link]")).toHaveCount(
-        contributorSnapshot.contributors.length,
-    );
+    await expect(page.locator("[data-contributors-section]")).toBeHidden();
+    await expect(page.locator("[data-contributor-link]")).toHaveCount(0);
     await expect(page.locator("#download-button")).toHaveAttribute(
         "href",
         `/${defaultRouteLocale}/${siteConfig.downloadPath}/`,

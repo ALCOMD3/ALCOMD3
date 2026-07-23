@@ -167,20 +167,14 @@ user が manual import を明示的に開始した場合のみ external-app impo
 
 ### Contributor data
 
-app と Website は build-time contributor snapshot として
-`generated/alcomd3-contributors.json` を共有する。両方の frontend build command は
-bundle 前に `scripts/sync-contributors.mjs` を実行する。この script は GitHub が
-ALCOMD3 repository home page に表示するものと同じ `contributors_list` fragment
-を読み込み、別の commit-history heuristic を維持せずに GitHub の visible list と
-順序を保持する。
+app と Website は GitHub の public repository contributors REST endpoint を直接
+request する。GitHub は commit count 順で response を返し、結果を数時間 cache
+する場合がある。
 
-- generated snapshot を手動編集しない。
-- GitHub が一時的に利用できない場合、build は最後の valid snapshot を維持する。
-- `website/functions/api/contributors.js` は GitHub fragment を validated かつ
-  short-lived な JSON response として公開する。app と Website は runtime refresh
-  にこれを使い、failure 時は bundled snapshot に fallback する。
-- PR author は GitHub が repository home page の contributor list に含めた時点で
-  表示する。別の allowlist や inherited-history filter を追加しない。
+- unauthenticated request のまま、先頭 100 contributors に制限する。
+- generated snapshot、proxy、allowlist、手動管理の contributor data を追加しない。
+- GitHub が利用できない場合や valid contributor を返さない場合は contributor
+  section を非表示にする。
 
 ### アイコンと第三者表示
 

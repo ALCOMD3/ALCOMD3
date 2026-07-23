@@ -8,8 +8,11 @@ import {
 
 const homepageUrl = alcomd3Config.homepageUrl.replace(/\/$/, "");
 const repositoryUrl = `https://github.com/${alcomd3Config.repository}`;
-const contributorsApiPath = "/api/contributors";
-const contributorsApiUrl = new URL(contributorsApiPath, `${homepageUrl}/`).href;
+const contributorsApiUrl = new URL(
+    `/repos/${alcomd3Config.repository}/contributors`,
+    "https://api.github.com",
+);
+contributorsApiUrl.searchParams.set("per_page", "100");
 const publisherRepositoryOwner = alcomd3Config.repository.split("/")[0];
 const stableRelease = createStableDownloadCatalog(alcomd3Config, stableUpdaterManifest);
 const betaDownloads = createDownloadCatalog(alcomd3Config, betaUpdaterManifest, {
@@ -26,8 +29,7 @@ export const siteConfig = {
     authorName: alcomd3Config.publisherName,
     authorUrl: `https://github.com/${publisherRepositoryOwner}`,
     repositoryUrl,
-    contributorsApiPath,
-    contributorsApiUrl,
+    contributorsApiUrl: contributorsApiUrl.href,
     downloadPath: "download",
     mcpDocsPath: "mcp",
     ogImagePath: "/assets/og-banner.png",

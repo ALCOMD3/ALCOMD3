@@ -155,17 +155,12 @@ ALCOMD3 默认拥有自己的运行数据。
 
 ### 贡献者数据
 
-应用和网站共享 `generated/alcomd3-contributors.json` 作为构建时贡献者快照。
-两个前端构建命令都会在打包前运行 `scripts/sync-contributors.mjs`。该脚本读取
-GitHub 在 ALCOMD3 仓库首页呈现的同一个 `contributors_list` 片段，保持 GitHub
-显示的名单和顺序，不再单独维护提交历史判断规则。
+应用和网站直接请求 GitHub 的公开仓库贡献者 REST 接口。GitHub 按提交数量排序，
+并可能将结果缓存数小时。
 
-- 不要手工编辑生成的快照。
-- GitHub 暂时不可用时，构建保留最后一份有效快照。
-- `website/functions/api/contributors.js` 将 GitHub 片段转换为经过校验、短期缓存的
-  JSON 响应。应用和网站使用它实时刷新，失败时回退到打包的快照。
-- PR 作者会在 GitHub 将其计入仓库首页贡献者名单后显示。不要另加允许名单或继承
-  历史过滤规则。
+- 保持匿名请求，并将结果限制为前 100 名贡献者。
+- 不要添加生成快照、代理、允许名单或手工维护的贡献者数据。
+- GitHub 不可用或没有返回有效贡献者时隐藏贡献者区域。
 
 ### 图标和第三方声明
 

@@ -46,7 +46,6 @@ import {
 	useUnityArgumentsSettings,
 } from "@/components/unity-arguments-settings";
 import {
-	bundledAlcomd3Contributors,
 	loadAlcomd3Contributors,
 } from "@/lib/alcomd3-contributors";
 import { assertNever } from "@/lib/assert-never";
@@ -75,8 +74,7 @@ const environmentGetSettings = queryOptions({
 const alcomd3Contributors = queryOptions({
 	queryKey: ["alcomd3Contributors"],
 	queryFn: () => loadAlcomd3Contributors(),
-	placeholderData: bundledAlcomd3Contributors,
-	staleTime: 5 * 60 * 1000,
+	staleTime: 30 * 60 * 1000,
 });
 
 function Page() {
@@ -1012,8 +1010,11 @@ function AlcomCard() {
 }
 
 function ContributorsCard() {
-	const { data: contributors = bundledAlcomd3Contributors } =
-		useQuery(alcomd3Contributors);
+	const { data: contributors = [] } = useQuery(alcomd3Contributors);
+
+	if (contributors.length === 0) {
+		return null;
+	}
 
 	return (
 		<SettingsCard className={"flex flex-col gap-3"}>

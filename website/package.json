@@ -4,13 +4,12 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "contributors:sync": "node ../scripts/sync-contributors.mjs",
-        "dev": "npm run contributors:sync && node scripts/generate-beer-theme.mjs && astro dev",
-        "build": "npm run contributors:sync && node scripts/generate-beer-theme.mjs && astro build",
+        "dev": "node scripts/generate-beer-theme.mjs && astro dev",
+        "build": "node scripts/generate-beer-theme.mjs && astro build",
         "check": "node scripts/generate-beer-theme.mjs && astro check",
         "preview": "astro preview",
         "test": "npm run test:unit && npm run build && npm run test:e2e",
-        "test:unit": "node --test tests/unit/downloads.test.mjs tests/unit/contributors.test.mjs",
+        "test:unit": "node --test tests/unit/downloads.test.mjs",
         "test:e2e": "playwright test"
     },
     "dependencies": {
