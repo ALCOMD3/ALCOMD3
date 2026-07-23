@@ -37,8 +37,9 @@ the configured `windowsAumid`,
 the old `legacyTauriIdentifier` WebView directory is removed, the new
 `windowsAppId` is the only registration, and the separate `ALCOMD3` user data is
 preserved. Do not release an installer that bypasses this cleanup.
-The migration baseline must remain the last old-AppId stable release selected by
-`legacyWindowsMigrationReleaseTag`.
+The migration baseline is resolved only from the configured repository. If
+`legacyWindowsMigrationReleaseTag` is absent from a fresh repository, smoke runs
+without a previous installer and never consults another repository.
 
 ### Agent execution semantics
 
@@ -238,9 +239,10 @@ assembly -> Draft. Windows x64, macOS arm64, and Linux x64 build in separate
 native runners from the same pinned source commit. Each `release-build
 --platform ... --github-actions-release` invocation emits a platform shard that
 does not yet have its updater Minisign signature, plus a source-bound shard
-manifest. Before upload, the Windows shard resolves
-`legacyWindowsMigrationReleaseTag` through the exact Release tag endpoint,
-verifies the setup ZIP, installs the pinned stable baseline, and upgrades it
+manifest. Before upload, the Windows shard looks for
+`legacyWindowsMigrationReleaseTag` only in the configured repository. If present,
+it verifies the setup ZIP, installs the pinned stable baseline, and upgrades it;
+if absent, it runs the current installer smoke without a previous installer
 with the setup EXE copied into `artifacts/release/v$Version/`. Baseline
 validation checks only the historical contract; current AppId, AUMID, file
 associations, shortcuts, migration cleanup, launch, and uninstall assertions run

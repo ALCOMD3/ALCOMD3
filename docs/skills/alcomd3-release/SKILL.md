@@ -24,8 +24,8 @@ description: 完成或审计 ALCOMD3 的 stable/beta 三平台发布与 release 
 一次实际发布只有在以下条件全部满足后才算完成：
 
 1. source release commit 已从 clean、同步的 `main` 创建并推送；
-2. `Build release draft` 的 Windows shard 已用固定迁移基线升级到本次正式安装器，并通过
-   安装、启动、身份迁移和卸载 smoke；
+2. `Build release draft` 的 Windows shard 已通过安装、启动和卸载 smoke；配置仓库存在固定
+   迁移基线时，还必须完成身份迁移和升级 smoke；
 3. `Build release draft` 的三个平台 shard 与统一汇总全部成功；
 4. GitHub Release 精确包含 10 个正式资产，Draft 已按授权公开；
 5. `Publish updater metadata` 已验证公开 Release 与全部资产；
@@ -36,7 +36,8 @@ description: 完成或审计 ALCOMD3 的 stable/beta 三平台发布与 release 
 10. 三个平台的 updater payload 与浏览器安装包均符合共享配置声明的更新模式。
 
 Draft 创建成功不等于发布完成。定时 `Full-chain desktop smoke` 的临时产物不是正式发布输入；
-`Build release draft` 对准确 Windows 正式安装器执行的升级 smoke 则是发布门禁。
+`Build release draft` 对准确 Windows 正式安装器执行的 smoke 是发布门禁；配置仓库存在固定
+迁移基线时，该门禁还必须包含升级 smoke。
 
 ## 不变量
 
@@ -259,9 +260,9 @@ gh workflow run release-draft.yml --repo ALCOMD3/ALCOMD3 `
 `replace_existing_draft=true`。workflow 必须固定使用 dispatch 时的 `github.sha`，执行：
 
 1. `preflight`：版本、notes、channel、GitHub Release 状态与 source SHA；
-2. `build-windows`：生成 setup EXE 与 ZIP，验证 ZIP 内容，使用
-   `legacyWindowsMigrationReleaseTag` 固定的旧 stable 安装器升级到本次正式 EXE，并完成
-   安装、启动、AUMID/AppId/关联/快捷方式迁移和卸载 smoke；
+2. `build-windows`：生成 setup EXE 与 ZIP，验证 ZIP 内容，只从当前配置仓库解析
+   `legacyWindowsMigrationReleaseTag`；存在该版本时升级到本次正式 EXE，不存在时执行纯安装，
+   并完成安装、启动、AUMID/AppId/关联/快捷方式检查和卸载 smoke；
 3. `build-macos`：按共享配置对嵌套二进制与 `.app` 做 ad-hoc 签名，生成 updater/DMG，
    再对 DMG 做 ad-hoc 签名；不请求公证或 staple；
 4. `build-linux`：带 self-updater 的 AppImage/updater archive，以及关闭 self-updater 的 DEB；
@@ -284,10 +285,11 @@ gh workflow run release-draft.yml --repo ALCOMD3/ALCOMD3 `
 
 Windows job 还必须确认：
 
-- 迁移基线通过 tag endpoint 精确解析为一个已公开 stable Release；
-- 旧版基线阶段只验证旧版已有合约，不要求当前版本新增的 AUMID；
+- 迁移基线只从当前配置仓库解析；新仓库不存在该 tag 时明确记录并跳过升级阶段；
+- 存在迁移基线时，旧版阶段只验证旧版已有合约，不要求当前版本新增的 AUMID；
 - 当前阶段测试的是 `artifacts/release/v$Version/` 中将进入 Draft 的 setup EXE；
-- 升级后当前 AppId/AUMID、模板 ProgID、`vcc://`、快捷方式和用户数据迁移全部通过；
+- 存在迁移基线时，升级后当前 AppId/AUMID、模板 ProgID、`vcc://`、快捷方式和用户数据迁移
+  全部通过；无基线时，当前安装器的对应安装合约全部通过；
 - 卸载完成且 smoke 诊断日志在失败时已上传。
 
 ## 4. 检查并公开 Draft
@@ -371,8 +373,9 @@ cargo xtask release-publish --version $Version --channel $Channel --dry-run
 ```
 
 Dry-run 不证明 updater 私钥、实际 ad-hoc 签名、GitHub 状态或公开 endpoint。
-身份迁移窗口内，例外的本地发布也不能绕过 GitHub-hosted Windows 正式安装器升级 smoke；
-无法证明准确正式安装器通过该门禁时，停止本地发布并改用默认 Draft workflow。
+身份迁移窗口内，配置仓库存在固定迁移基线时，例外的本地发布也不能绕过 GitHub-hosted
+Windows 正式安装器升级 smoke；无法证明准确正式安装器通过适用门禁时，停止本地发布并改用
+默认 Draft workflow。
 
 ## 必须验证
 
@@ -408,8 +411,8 @@ job 证明，正式 Windows 安装器升级链只能由 `release-draft.yml` 的 
 
 - release notes/updater notes 缺失、含 placeholder、结构不符合固定格式或比较基准错误；
 - worktree 不干净、source commit 与 `origin/main` 不一致；
-- Windows 正式安装器升级 smoke 失败、取消、未执行，或测试的不是本次 source-bound shard
-  中的 setup EXE；
+- Windows 正式安装器 smoke 失败、取消、未执行，或测试的不是本次 source-bound shard 中的
+  setup EXE；配置仓库存在固定迁移基线时，升级 smoke 同样不得失败、取消或省略；
 - updater 签名凭据缺失、为空、无法解密或与公钥不匹配；
 - macOS shard 未绑定共享配置要求的 ad-hoc signing；
 - identity 不是 `-`，出现可配置签名身份、secure timestamp/公证参数，或 app、嵌套程序、updater
@@ -430,8 +433,8 @@ job 证明，正式 Windows 安装器升级链只能由 `release-draft.yml` 的 
 报告至少包括：
 
 - version/channel、source commit、tag 与 Release URL；
-- 三个平台 build job、Windows 固定基线与正式安装器升级 smoke、各平台按共享配置完成的
-  打包/签名/更新模式验证、统一汇总结果；
+- 三个平台 build job、Windows 固定基线可用性与适用的正式安装器 smoke、各平台按共享配置
+  完成的打包/签名/更新模式验证、统一汇总结果；
 - 10 资产清单与 manifest/attestation 结果；
 - updater metadata commit、目标 JSON 与三平台签名验证；
 - Cloudflare Pages 与 public endpoint；

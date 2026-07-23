@@ -28,15 +28,24 @@ if ($migrationSemanticVersion -ge $currentSemanticVersion) {
     throw "Legacy Windows migration release must be older than the current version: $migrationReleaseTag"
 }
 
-$encodedTag = [Uri]::EscapeDataString($migrationReleaseTag)
-$previousReleaseJson = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$encodedTag"
+$repositoryReleasesJson = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100"
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
-$previousRelease = $previousReleaseJson | ConvertFrom-Json
-if ($previousRelease.tag_name -cne $migrationReleaseTag) {
-    throw "Legacy Windows migration release tag mismatch: expected $migrationReleaseTag, got $($previousRelease.tag_name)"
+$matchingReleases = @(
+    $repositoryReleasesJson `
+        | ConvertFrom-Json `
+        | Where-Object { $_.tag_name -ceq $migrationReleaseTag }
+)
+if ($matchingReleases.Count -eq 0) {
+    Write-Warning "Migration baseline $migrationReleaseTag is not published in $env:GITHUB_REPOSITORY; running installer smoke without a previous installer."
+    return
 }
+if ($matchingReleases.Count -ne 1) {
+    throw "Migration release $migrationReleaseTag resolved to $($matchingReleases.Count) releases in $env:GITHUB_REPOSITORY"
+}
+
+$previousRelease = $matchingReleases[0]
 if ($previousRelease.draft -or $previousRelease.prerelease) {
     throw "Legacy Windows migration release must be a published stable release: $migrationReleaseTag"
 }

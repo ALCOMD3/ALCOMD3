@@ -259,10 +259,10 @@ mod tests {
 
     #[test]
     fn published_manifest_mode_accepts_only_assets_from_the_exact_release_directory() {
-        let base = "https://github.com/CQMHV/ALCOMD3/releases/download/v2.1.1/";
+        let base = "https://github.com/ALCOMD3/ALCOMD3/releases/download/v2.1.1/";
         assert_eq!(
             published_asset_name(
-                "https://github.com/CQMHV/ALCOMD3/releases/download/v2.1.1/alcomd3-2.1.1-setup.exe",
+                "https://github.com/ALCOMD3/ALCOMD3/releases/download/v2.1.1/alcomd3-2.1.1-setup.exe",
                 base,
                 "windows-x86_64",
             )
@@ -279,7 +279,7 @@ mod tests {
         );
         assert!(
             published_asset_name(
-                "https://github.com/CQMHV/ALCOMD3/releases/download/v2.1.1/../asset",
+                "https://github.com/ALCOMD3/ALCOMD3/releases/download/v2.1.1/../asset",
                 base,
                 "windows-x86_64",
             )

@@ -1,20 +1,20 @@
 {
   "version": "2.2.0-beta.6",
-  "notes": "ALCOMD3 v2.2.0-beta.6. See https://github.com/CQMHV/ALCOMD3/releases/tag/v2.2.0-beta.6 for details.",
+  "notes": "ALCOMD3 v2.2.0-beta.6. See https://github.com/ALCOMD3/ALCOMD3/releases/tag/v2.2.0-beta.6 for details.",
   "notes_i18n": {
-    "de": "Fügt Erweiterungsverwaltung und Drag-and-Drop-Sortierung der Seitenleiste hinzu und verbessert die Synchronisierung der Mitwirkendendaten.\n\nhttps://github.com/CQMHV/ALCOMD3/releases/tag/v2.2.0-beta.6",
-    "en": "Adds extension management and drag-and-drop sidebar ordering, with more reliable contributor data synchronization.\n\nhttps://github.com/CQMHV/ALCOMD3/releases/tag/v2.2.0-beta.6",
-    "fr": "Ajoute la gestion des extensions et le tri de la barre latérale par glisser-déposer, avec une synchronisation plus fiable des contributeurs.\n\nhttps://github.com/CQMHV/ALCOMD3/releases/tag/v2.2.0-beta.6",
-    "ja": "拡張機能の管理とサイドバーのドラッグ＆ドロップ並べ替えを追加し、コントリビューターデータの同期を改善しました。\n\nhttps://github.com/CQMHV/ALCOMD3/releases/tag/v2.2.0-beta.6",
-    "ko": "확장 관리와 사이드바 드래그 앤 드롭 정렬을 추가하고 기여자 데이터 동기화의 안정성을 개선했습니다.\n\nhttps://github.com/CQMHV/ALCOMD3/releases/tag/v2.2.0-beta.6",
-    "zh_hans": "新增扩展管理和侧边栏拖动排序，并提升贡献者数据同步的可靠性。\n\nhttps://github.com/CQMHV/ALCOMD3/releases/tag/v2.2.0-beta.6",
-    "zh_hant": "新增擴充功能管理和側邊欄拖曳排序，並提升貢獻者資料同步的可靠性。\n\nhttps://github.com/CQMHV/ALCOMD3/releases/tag/v2.2.0-beta.6"
+    "de": "Fügt Erweiterungsverwaltung und Drag-and-Drop-Sortierung der Seitenleiste hinzu und verbessert die Synchronisierung der Mitwirkendendaten.\n\nhttps://github.com/ALCOMD3/ALCOMD3/releases/tag/v2.2.0-beta.6",
+    "en": "Adds extension management and drag-and-drop sidebar ordering, with more reliable contributor data synchronization.\n\nhttps://github.com/ALCOMD3/ALCOMD3/releases/tag/v2.2.0-beta.6",
+    "fr": "Ajoute la gestion des extensions et le tri de la barre latérale par glisser-déposer, avec une synchronisation plus fiable des contributeurs.\n\nhttps://github.com/ALCOMD3/ALCOMD3/releases/tag/v2.2.0-beta.6",
+    "ja": "拡張機能の管理とサイドバーのドラッグ＆ドロップ並べ替えを追加し、コントリビューターデータの同期を改善しました。\n\nhttps://github.com/ALCOMD3/ALCOMD3/releases/tag/v2.2.0-beta.6",
+    "ko": "확장 관리와 사이드바 드래그 앤 드롭 정렬을 추가하고 기여자 데이터 동기화의 안정성을 개선했습니다.\n\nhttps://github.com/ALCOMD3/ALCOMD3/releases/tag/v2.2.0-beta.6",
+    "zh_hans": "新增扩展管理和侧边栏拖动排序，并提升贡献者数据同步的可靠性。\n\nhttps://github.com/ALCOMD3/ALCOMD3/releases/tag/v2.2.0-beta.6",
+    "zh_hant": "新增擴充功能管理和側邊欄拖曳排序，並提升貢獻者資料同步的可靠性。\n\nhttps://github.com/ALCOMD3/ALCOMD3/releases/tag/v2.2.0-beta.6"
   },
   "pub_date": "2026-07-23T18:49:24Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIEFMQ09NRDMgdXBkYXRlciBrZXkKUlVTd0JJVHZnNHp2M2R4dVUrTnZCYWJlVmlURnBwRlN0SEh3ZC9DSFNMdXcrNGxWVXQ5KzJ3ZWFzVmQ1Nm0zWlBXRkd2ZU1KcVVZSVFtWGlJcFBMMkFCdmtYMXdNeXFhaGdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0ODMyNDYwCWZpbGU6QUxDT01EM18yLjIuMC1iZXRhLjZfd2luZG93c194ODZfNjRfc2V0dXAuZXhlCXB1cnBvc2U6cmVsZWFzZQo0bFlPU3RoQXlGVENiaGRCS3B0Ny9ZdURnWlhhODdQRHh4OGVnbzRIZnRLd25JakdNdVJkRXc0L2NKSmJCNGJ6V1NPcWkvWmtiS2VHdGdPYUNDcERCUT09Cg==",
-      "url": "https://github.com/CQMHV/ALCOMD3/releases/download/v2.2.0-beta.6/ALCOMD3_2.2.0-beta.6_windows_x86_64_setup.exe",
+      "url": "https://github.com/ALCOMD3/ALCOMD3/releases/download/v2.2.0-beta.6/ALCOMD3_2.2.0-beta.6_windows_x86_64_setup.exe",
       "args": [
         "/SP-",
         "/SILENT",
@@ -25,12 +25,12 @@
     },
     "darwin-aarch64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIEFMQ09NRDMgdXBkYXRlciBrZXkKUlVTd0JJVHZnNHp2M1hDUVlnTFU2STBTZjlVaVFNb3NTYkxNT2RrYmtzMk04eTY4bFVLbjg5TFgzR0lBM0hzaVlwSlJZNUxNeFZYOFlaUTFGZUZuWEJCdnVQSlZNbUFjdXdrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0ODMyNDY2CWZpbGU6QUxDT01EM18yLjIuMC1iZXRhLjZfbWFjb3NfYWFyY2g2NC5hcHAudGFyLmd6CXB1cnBvc2U6cmVsZWFzZQpJK25XdFc0OXI2bUQzUkEzTUlIVC9SR0VRcklFR0lOc0Z6TUVBaG8rckV3c0FieFdvSlFqY3lvSjFkRlp5bisvOVE3THZFQVBKOXQxWE1MVlhhcnlCQT09Cg==",
-      "url": "https://github.com/CQMHV/ALCOMD3/releases/download/v2.2.0-beta.6/ALCOMD3_2.2.0-beta.6_macos_aarch64.app.tar.gz",
+      "url": "https://github.com/ALCOMD3/ALCOMD3/releases/download/v2.2.0-beta.6/ALCOMD3_2.2.0-beta.6_macos_aarch64.app.tar.gz",
       "args": []
     },
     "linux-x86_64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIEFMQ09NRDMgdXBkYXRlciBrZXkKUlVTd0JJVHZnNHp2M1V5TEFvRDZqa25TaWV1SEdmbkNrbFBWQW9ncTRzeHdxWDQyUS9VK1VrNjdFeUJlcVcweGRrOXZOMThhajBNcTRMVlFIcDczVnU1T1ptK2RYSmhNNGc0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0ODMyNDcyCWZpbGU6QUxDT01EM18yLjIuMC1iZXRhLjZfbGludXhfeDg2XzY0LkFwcEltYWdlLnRhci5neglwdXJwb3NlOnJlbGVhc2UKWGE0cHNZSFVPM2c4MDEvOTBRaHpzbWZ4empGZTBYaUJqbzBHQ2VKaFRZekVTNHlURWYxQitlMGdJMFZpNGtFR3lPRmlQUGc3SmJjVm4ydFozS1dFQWc9PQo=",
-      "url": "https://github.com/CQMHV/ALCOMD3/releases/download/v2.2.0-beta.6/ALCOMD3_2.2.0-beta.6_linux_x86_64.AppImage.tar.gz",
+      "url": "https://github.com/ALCOMD3/ALCOMD3/releases/download/v2.2.0-beta.6/ALCOMD3_2.2.0-beta.6_linux_x86_64.AppImage.tar.gz",
       "args": []
     }
   }

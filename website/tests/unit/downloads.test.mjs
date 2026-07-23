@@ -228,7 +228,7 @@ describe("stable release handling", () => {
     test("keeps legacy stable assets on the release page without asset aliases", () => {
         const manifest = createManifest(["windows-x86_64"], "2.1.1");
         manifest.platforms["windows-x86_64"].url =
-            "https://github.com/CQMHV/ALCOMD3/releases/download/v2.1.1/alcomd3-2.1.1-setup.exe";
+            "https://github.com/ALCOMD3/ALCOMD3/releases/download/v2.1.1/alcomd3-2.1.1-setup.exe";
 
         const catalog = createStableDownloadCatalog(createConfig(), manifest);
 

@@ -171,7 +171,7 @@ jobs:
                       -Installer $env:INSTALLER `
                       -Archive $env:INSTALLER_ZIP
 
-            - name: Upgrade migration baseline with Windows release installer
+            - name: Install, optionally upgrade, launch, and uninstall Windows release
               env:
                   CURRENT_INSTALLER: ${{ steps.installers.outputs.installer }}
                   PREVIOUS_INSTALLER: ${{ steps.installers.outputs.previous_installer }}
@@ -179,11 +179,15 @@ jobs:
                   RUNNER_ENVIRONMENT: ${{ runner.environment }}
               shell: pwsh
               run: |
-                  & .github/scripts/installer-smoke.ps1 `
-                      -CurrentInstaller $env:CURRENT_INSTALLER `
-                      -PreviousInstaller $env:PREVIOUS_INSTALLER `
-                      -ExpectedVersion $env:EXPECTED_VERSION `
-                      -InstallDir (Join-Path $env:RUNNER_TEMP 'alcomd3-release-install-smoke')
+                  $parameters = @{
+                      CurrentInstaller = $env:CURRENT_INSTALLER
+                      ExpectedVersion = $env:EXPECTED_VERSION
+                      InstallDir = Join-Path $env:RUNNER_TEMP 'alcomd3-release-install-smoke'
+                  }
+                  if (-not [string]::IsNullOrWhiteSpace($env:PREVIOUS_INSTALLER)) {
+                      $parameters.PreviousInstaller = $env:PREVIOUS_INSTALLER
+                  }
+                  & .github/scripts/installer-smoke.ps1 @parameters
 
             - name: Upload Windows smoke diagnostics on failure
               if: failure()
