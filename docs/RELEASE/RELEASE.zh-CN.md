@@ -72,7 +72,6 @@ Stable version 不能包含 prerelease metadata。Beta version 必须包含 prer
 
 仓库前置配置：
 
-- 启用 GitHub Immutable Releases；
 - 把 `ALCOMD3_UPDATER_PRIVATE_KEY`、
   `ALCOMD3_UPDATER_PRIVATE_KEY_PASSWORD` 存为 repository Actions Secrets；
 - 保持 Cloudflare Pages 对 `main` 的 production 自动部署开启。
@@ -86,9 +85,6 @@ macOS 发布只支持 ad-hoc 签名，不需要 Apple 账号或 Apple Secrets。
 更新的资产使用 `self-updater`，Linux DEB 使用 `no-self-updater`。构建命令直接使用该值，
 source-bound shard 与统一 manifest 也会保留每项资产的模式。
 
-在触发 Draft workflow 前，必须使用具备仓库 Administration 读取权限的 `gh api` 预检确认
-Immutable Releases 已启用。job-scoped `GITHUB_TOKEN` 不具备该权限，因此 workflow 会有意
-不重复此读取；已公开 updater metadata 仍由不可变 Release attestation 严格把关。
 
 受保护的 `release-signing` Environment 是可选加固项，不是当前前置条件。如果以后进入
 多人维护并需要独立审批边界，再把同名 Secrets 迁移到该 Environment，同时给 workflow
@@ -251,8 +247,7 @@ Draft/prerelease 状态及全部资产 digest。
 发布 Draft 会触发 **Publish updater metadata**。它会在全新 runner 上：
 
 - 从已发布 Release 推导版本和 stable/beta channel；
-- 验证 Immutable Release attestation，下载全部 10 项公开资产，并逐个确认下载资产与
-  attestation 一致；
+- 下载精确 10 项公开资产，并拒绝任何缺失或额外资产；
 - 要求 Release target、tag commit、root/GUI/Website 版本完全一致；
 - 验证三个 updater payload 及其 Minisign 签名，确保每份签名绑定精确文件名和已认证的
   `release` 用途；
@@ -343,7 +338,6 @@ Windows 身份迁移期间，例外的本地发布也不能绕过 GitHub-hosted 
 - GitHub Release title 不是 `Version $Version`；
 - GitHub Release assets 缺失或命名错误；
 - stable/beta flags 错误；
-- Immutable Releases 未启用，或 Release/asset attestation 验证失败；
 - Release target SHA、tag commit 或 source 版本不一致；
 - release 签名被标记为 `local-test`，或绑定了其他文件名；
 - updater metadata 会使所选 channel 版本回退；

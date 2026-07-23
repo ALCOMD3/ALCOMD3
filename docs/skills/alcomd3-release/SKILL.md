@@ -94,7 +94,7 @@ Updater platform key 固定为：
 
 ## 发布前凭据
 
-GitHub 仓库必须启用 Immutable Releases，并配置：
+GitHub 仓库必须配置：
 
 - `ALCOMD3_UPDATER_PRIVATE_KEY`
 - `ALCOMD3_UPDATER_PRIVATE_KEY_PASSWORD`
@@ -312,16 +312,15 @@ Windows job 还必须确认：
 公开 Draft 会触发 `.github/workflows/release-updater.yml`。该 workflow 不读取私钥，必须：
 
 1. 验证 Release title、channel、target SHA、tag commit 与版本文件；
-2. 执行 Immutable Release attestation；
-3. 下载精确 10 个资产，并逐个执行 asset attestation；
-4. 用 GUI 内嵌公钥验证三个 updater payload 的 minisign、文件名绑定和
+2. 下载精确 10 个资产，并拒绝任何缺失或额外资产；
+3. 用 GUI 内嵌公钥验证三个 updater payload 的 minisign、文件名绑定和
    `purpose:release`；
-5. 从 tag 读取 updater notes，以 Release `publishedAt` 作为确定的 `pub_date`；
-6. 一次性生成包含三个 platform key 的目标 channel JSON；
-7. 拒绝版本回退；同版本重跑必须生成字节一致的 JSON；
-8. 运行官网 check/build；
-9. 只提交目标 channel updater JSON，并推送 `main`；
-10. 等待 Cloudflare Pages 部署，轮询 public endpoint，直到与生成 JSON 完全一致。
+4. 从 tag 读取 updater notes，以 Release `publishedAt` 作为确定的 `pub_date`；
+5. 一次性生成包含三个 platform key 的目标 channel JSON；
+6. 拒绝版本回退；同版本重跑必须生成字节一致的 JSON；
+7. 运行官网 check/build；
+8. 只提交目标 channel updater JSON，并推送 `main`；
+9. 等待 Cloudflare Pages 部署，轮询 public endpoint，直到与生成 JSON 完全一致。
 
 不能在 Windows 资产成功但 macOS/Linux 失败时发布部分 metadata。三个平台必须原子上线。
 
@@ -419,7 +418,6 @@ job 证明，正式 Windows 安装器升级链只能由 `release-draft.yml` 的 
   app、DMG 的 ad-hoc 严格验证失败；
 - 三个 shard 不同源、资产缺失/额外/篡改或 manifest 不匹配；
 - GitHub Release title、channel、tag、target SHA 或 10 资产白名单不一致；
-- Immutable Release/asset attestation 失败；
 - updater signature、文件名绑定、purpose、URL 或平台 key 不一致；
 - metadata 会回退版本或同版本重建不一致；
 - 官网会生成不存在的资产 URL；

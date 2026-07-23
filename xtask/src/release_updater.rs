@@ -100,7 +100,6 @@ impl crate::Command for Command {
             published_at.context("published GitHub Release has no publishedAt timestamp")?
         };
         verify_release_tag_source(&runner, &ctx, source_sha)?;
-        verify_immutable_release(&runner, &ctx)?;
         let previous_updater = if self.dry_run {
             None
         } else {
@@ -117,7 +116,6 @@ impl crate::Command for Command {
             .transpose()?
             .unwrap_or(false);
         download_public_release_assets(&runner, &ctx)?;
-        verify_downloaded_release_attestations(&runner, &ctx)?;
         verify_downloaded_updater_signatures(&ctx)?;
         let updater_notes = load_release_updater_notes(&runner, &ctx)?;
         generate_updater_json(&runner, &ctx, &updater_notes, &published_at)?;
@@ -208,30 +206,6 @@ fn download_public_release_assets_command(ctx: &ReleaseContext) -> ProcessComman
     cmd
 }
 
-fn verify_immutable_release(runner: &CmdRunner, ctx: &ReleaseContext) -> Result<()> {
-    let mut cmd = gh();
-    cmd.arg("release")
-        .arg("verify")
-        .arg(&ctx.tag)
-        .arg("--repo")
-        .arg(&ctx.repo);
-    runner.run(cmd, "verifying immutable GitHub Release attestation")
-}
-
-fn verify_downloaded_release_attestations(runner: &CmdRunner, ctx: &ReleaseContext) -> Result<()> {
-    for name in ctx.expected_public_asset_names() {
-        let asset = ctx.release_check_dir().join(name);
-        let mut cmd = gh();
-        cmd.arg("release")
-            .arg("verify-asset")
-            .arg(&ctx.tag)
-            .arg(&asset)
-            .arg("--repo")
-            .arg(&ctx.repo);
-        runner.run(cmd, "verifying downloaded release asset attestation")?;
-    }
-    Ok(())
-}
 
 fn verify_downloaded_updater_signatures(ctx: &ReleaseContext) -> Result<()> {
     let public_key = ctx

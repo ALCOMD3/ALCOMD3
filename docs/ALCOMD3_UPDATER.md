@@ -95,8 +95,8 @@ the Windows setup, macOS app updater archive, and Linux AppImage updater archive
 and atomically writes the combined release manifest. It does not create or
 upload an `.env` file.
 
-After the Draft is manually published, `release-updater.yml` downloads all ten
-public assets and verifies every Immutable Release asset attestation. It verifies
+After the Draft is manually published, `release-updater.yml` downloads the exact
+ten public assets and rejects an incomplete or unexpected asset set. It verifies
 the three updater payload/signature pairs, reads updater notes from the Release
 tag, and atomically regenerates the selected channel's three-platform updater
 JSON on a fresh runner using the Release `publishedAt` as a fixed `pub_date`.

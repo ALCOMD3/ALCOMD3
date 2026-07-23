@@ -64,7 +64,7 @@ impl crate::Command for Command {
         let target_commit = current_head(&runner, &ctx)?;
         let source_sha = self.source_sha.as_deref().unwrap_or(target_commit.as_str());
 
-        let trusted_draft_automation = if !self.dry_run {
+        if !self.dry_run {
             validate_full_git_sha(source_sha)?;
             if !target_commit.eq_ignore_ascii_case(source_sha) {
                 bail!(
@@ -72,18 +72,14 @@ impl crate::Command for Command {
                 );
             }
 
-            let trusted_draft_automation = if std::env::var("GITHUB_ACTIONS").as_deref()
-                == Ok("true")
-            {
+            if std::env::var("GITHUB_ACTIONS").as_deref() == Ok("true") {
                 ensure_github_actions_context(&ctx, ReleaseAutomation::Draft, source_sha, false)?;
                 if self.publish {
                     bail!("the GitHub Actions Draft workflow is not allowed to publish a release");
                 }
-                true
             } else {
                 ensure_local_manual_publish_source(&runner, &ctx, source_sha)?;
-                false
-            };
+            }
 
             crate::release_assets::verify_artifact_directory_allowlist(
                 &artifact_dir,
@@ -111,18 +107,8 @@ impl crate::Command for Command {
                     Some(UpdaterSignaturePurpose::Release),
                 )?;
             }
-            trusted_draft_automation
-        } else {
-            false
-        };
-
-        // GitHub Actions' job-scoped token cannot read the Administration-only
-        // immutable-releases setting. The trusted Draft workflow is checked by
-        // an administrator-authenticated preflight before dispatch, while local
-        // manual publishing continues to verify the setting directly.
-        if !trusted_draft_automation {
-            ensure_immutable_releases_enabled(&runner, &ctx)?;
         }
+
 
         if self.replace_assets {
             ensure_github_release_is_draft(&ctx, &runner)?;
@@ -150,28 +136,6 @@ impl crate::Command for Command {
     }
 }
 
-fn ensure_immutable_releases_enabled(runner: &CmdRunner, ctx: &ReleaseContext) -> Result<()> {
-    let mut cmd = gh();
-    cmd.arg("api")
-        .arg("--header")
-        .arg("X-GitHub-Api-Version: 2026-03-10")
-        .arg(format!("repos/{}/immutable-releases", ctx.repo));
-    let output = runner.capture(cmd, "checking immutable GitHub Releases")?;
-    if runner.dry_run() {
-        return Ok(());
-    }
-
-    let state: serde_json::Value =
-        serde_json::from_str(&output).map_err(|error| anyhow::anyhow!(error))?;
-    let enabled = state
-        .get("enabled")
-        .and_then(serde_json::Value::as_bool)
-        .unwrap_or(false);
-    if !enabled {
-        bail!("GitHub immutable releases must be enabled before creating a release Draft");
-    }
-    Ok(())
-}
 
 fn create_release(runner: &CmdRunner, ctx: &ReleaseContext, target_commit: &str) -> Result<()> {
     runner.run(

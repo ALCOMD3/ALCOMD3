@@ -94,7 +94,6 @@ prerelease metadata.
 
 Repository prerequisites:
 
-- enable GitHub Immutable Releases;
 - store `ALCOMD3_UPDATER_PRIVATE_KEY` and
   `ALCOMD3_UPDATER_PRIVATE_KEY_PASSWORD` as repository Actions Secrets;
 - keep automatic Cloudflare Pages production deployment enabled for `main`.
@@ -113,11 +112,6 @@ Every updater payload and browser download declares an `updateMode` in
 DEB uses `no-self-updater`. The build command consumes that value, and the
 source-bound shard and combined manifest retain it with each asset.
 
-Before dispatching the Draft workflow, verify Immutable Releases with an
-administrator-authenticated `gh api` preflight. The job-scoped `GITHUB_TOKEN`
-lacks the required repository Administration read permission, so the workflow
-deliberately does not repeat this read; published updater metadata is still
-gated by the immutable Release attestation.
 
 A protected `release-signing` Environment is optional rather than a current
 prerequisite. If the project later needs a separate approval boundary for
@@ -309,8 +303,7 @@ Publishing the Draft triggers **Publish updater metadata**. On a fresh runner,
 the workflow:
 
 - derives the version and stable/beta channel from the published Release;
-- verifies the immutable Release attestation, downloads all ten public assets,
-  and verifies every downloaded asset against its attestation;
+- downloads the exact ten public assets and rejects any missing or unexpected asset;
 - requires the Release target, tag commit, and root/GUI/Website versions to
   match exactly;
 - verifies the three updater payloads and their Minisign signatures, each bound
@@ -422,7 +415,6 @@ Stop the release if:
 - GitHub Release title is not `Version $Version`;
 - GitHub Release assets are missing or misnamed;
 - stable/beta flags are wrong;
-- Immutable Releases are disabled or a Release/asset attestation fails;
 - the Release target SHA, tag commit, or source versions disagree;
 - a release signature is marked `local-test` or is bound to another filename;
 - updater metadata would roll back the selected channel;

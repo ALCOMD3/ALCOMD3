@@ -80,8 +80,8 @@ assembly job だけが受け取り、private key の復号と GUI embedded publi
 updater archive を sign/verify し、combined release manifest を atomic に書く。`.env` は
 作成・upload しない。
 
-Draft の手動 publish 後、`release-updater.yml` は 10 public assets をすべて download して
-各 Immutable Release asset attestation を検証する。3 updater payload/signature pairs を
+Draft の手動 publish 後、`release-updater.yml` は 10 public assets を正確に download し、
+不足または追加された asset を拒否する。3 updater payload/signature pairs を
 検証し、Release tag から updater notes を読み、Release `publishedAt` を固定 `pub_date`
 として selected channel の 3-platform updater JSON を fresh runner 上で atomic に再生成する。
 Exact tag/source SHA、source version、version non-rollback、authenticated `release` purpose
