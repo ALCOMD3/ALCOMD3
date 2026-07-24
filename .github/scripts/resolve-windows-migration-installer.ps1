@@ -35,6 +35,7 @@ $releaseResult = @(
 if ($LASTEXITCODE -ne 0) {
     $releaseError = $releaseResult -join [Environment]::NewLine
     if ($releaseError -match 'HTTP 404|Not Found') {
+        $global:LASTEXITCODE = 0
         Write-Warning "Migration baseline $migrationReleaseTag is not published in $env:GITHUB_REPOSITORY; running installer smoke without a previous installer."
         return
     }
