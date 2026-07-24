@@ -98,6 +98,7 @@ GitHub 仓库必须配置：
 
 - `ALCOMD3_UPDATER_PRIVATE_KEY`
 - `ALCOMD3_UPDATER_PRIVATE_KEY_PASSWORD`
+- `ALCOMD3_WEBSITE_DEPLOY_KEY`
 
 macOS ad-hoc 签名不使用 Apple 账号、证书或 Apple Secrets，签名命令与 workflow 也不提供
 相应参数或环境变量入口。Updater 私钥仅进入统一汇总 job；macOS build job 不读取 updater
@@ -319,8 +320,9 @@ Windows job 还必须确认：
 5. 一次性生成包含三个 platform key 的目标 channel JSON；
 6. 拒绝版本回退；同版本重跑必须生成字节一致的 JSON；
 7. 运行官网 check/build；
-8. 只提交目标 channel updater JSON，并推送 `main`；
-9. 等待 Cloudflare Pages 部署，轮询 public endpoint，直到与生成 JSON 完全一致。
+8. 只提交目标 channel updater JSON，并推送主仓库 `main`；
+9. 使用网站仓库专用 deploy key 将目标 JSON 实时同步到配置的网站仓库 `main`；
+10. 等待 Cloudflare Pages 部署，轮询 public endpoint，直到与生成 JSON 完全一致。
 
 不能在 Windows 资产成功但 macOS/Linux 失败时发布部分 metadata。三个平台必须原子上线。
 
@@ -425,6 +427,8 @@ job 证明，正式 Windows 安装器升级链只能由 `release-draft.yml` 的 
 
 公开 Release 之后，Cloudflare Pages 延迟或 endpoint 暂未更新不是回滚理由。修复部署问题并
 重跑 updater workflow；不要改写已公开 Release 资产。
+故障恢复或复验时，可以使用已发布 Release 的 tag 手动启动 updater workflow；Release 名称、
+通道和源提交必须由 workflow 从 GitHub 解析。
 
 ## 最终报告
 

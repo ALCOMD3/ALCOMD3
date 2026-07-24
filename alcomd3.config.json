@@ -6,6 +6,7 @@
     "publisherName": "CQMHV",
     "homepageUrl": "https://alcomd3.cqmhv.com/",
     "repository": "ALCOMD3/ALCOMD3",
+    "websiteRepository": "ALCOMD3/ALCOMD3-Website",
     "tauriIdentifier": "com.cqmhv.alcomd3",
     "legacyTauriIdentifier": "com.anatawa12.vrc-get-gui",
     "windowsAppId": "{3CA473A7-9CEA-4EB6-9949-803C3D0B8057}",

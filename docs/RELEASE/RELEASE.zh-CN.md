@@ -72,9 +72,9 @@ Stable version 不能包含 prerelease metadata。Beta version 必须包含 prer
 
 仓库前置配置：
 
-- 把 `ALCOMD3_UPDATER_PRIVATE_KEY`、
-  `ALCOMD3_UPDATER_PRIVATE_KEY_PASSWORD` 存为 repository Actions Secrets；
-- 保持 Cloudflare Pages 对 `main` 的 production 自动部署开启。
+- 把 `ALCOMD3_UPDATER_PRIVATE_KEY`、`ALCOMD3_UPDATER_PRIVATE_KEY_PASSWORD` 和
+  `ALCOMD3_WEBSITE_DEPLOY_KEY` 存为 repository Actions Secrets；
+- 保持 Cloudflare Pages 对配置的网站仓库 `main` 分支的 production 自动部署开启。
 
 macOS 发布只支持 ad-hoc 签名，不需要 Apple 账号或 Apple Secrets。签名命令不提供证书身份或
 公证选项。平台特定的构建、签名、安装与更新机制只属于技术合约。Release notes、updater notes
@@ -245,6 +245,9 @@ Draft/prerelease 状态及全部资产 digest。
 ### 6. 等待 updater workflow 和 Cloudflare Pages
 
 发布 Draft 会触发 **Publish updater metadata**。它会在全新 runner 上：
+
+如需故障恢复或复验，可使用已经发布的 Release 标签手动启动同一工作流。工作流会
+直接从 GitHub 解析 Release 名称、通道和源提交。
 
 - 从已发布 Release 推导版本和 stable/beta channel；
 - 下载精确 10 项公开资产，并拒绝任何缺失或额外资产；

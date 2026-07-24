@@ -94,9 +94,10 @@ prerelease metadata.
 
 Repository prerequisites:
 
-- store `ALCOMD3_UPDATER_PRIVATE_KEY` and
-  `ALCOMD3_UPDATER_PRIVATE_KEY_PASSWORD` as repository Actions Secrets;
-- keep automatic Cloudflare Pages production deployment enabled for `main`.
+- store `ALCOMD3_UPDATER_PRIVATE_KEY`, `ALCOMD3_UPDATER_PRIVATE_KEY_PASSWORD`, and
+  `ALCOMD3_WEBSITE_DEPLOY_KEY` as repository Actions Secrets;
+- keep automatic Cloudflare Pages production deployment enabled for the configured
+  Website repository's `main` branch.
 
 macOS releases support ad-hoc signing only and require no Apple account or Apple
 Secrets. The signing command exposes no certificate identity or notarization
@@ -301,6 +302,10 @@ default build workflow does not bypass it.
 
 Publishing the Draft triggers **Publish updater metadata**. On a fresh runner,
 the workflow:
+
+For recovery or verification, manually dispatch the same workflow with an
+already published release tag. The workflow resolves the release name, channel,
+and source commit from GitHub.
 
 - derives the version and stable/beta channel from the published Release;
 - downloads the exact ten public assets and rejects any missing or unexpected asset;
