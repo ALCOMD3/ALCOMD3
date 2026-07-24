@@ -375,14 +375,24 @@ fn validate_github_actions_context(
     if github_actions != "true" {
         bail!("release publication commands may only run in GitHub Actions");
     }
-    if event_name != automation.event_name() {
-        bail!(
-            "unexpected GitHub Actions event: expected {}, got {event_name}",
+    let updater_dispatch =
+        automation == ReleaseAutomation::Updater && event_name == "workflow_dispatch";
+    if event_name != automation.event_name() && !updater_dispatch {
+        let expected_event = if automation == ReleaseAutomation::Updater {
+            "release or workflow_dispatch"
+        } else {
             automation.event_name()
+        };
+        bail!(
+            "unexpected GitHub Actions event: expected {expected_event}, got {event_name}"
         );
     }
 
-    let expected_ref = automation.expected_ref(ctx);
+    let expected_ref = if updater_dispatch {
+        "refs/heads/main".to_string()
+    } else {
+        automation.expected_ref(ctx)
+    };
     if github_ref != expected_ref {
         bail!("unexpected GitHub ref: expected {expected_ref}, got {github_ref}");
     }
@@ -392,7 +402,8 @@ fn validate_github_actions_context(
             ctx.repo
         );
     }
-    if !github_sha.eq_ignore_ascii_case(source_sha) {
+    validate_full_git_sha(github_sha)?;
+    if !updater_dispatch && !github_sha.eq_ignore_ascii_case(source_sha) {
         bail!("GitHub event SHA does not match the requested release source SHA");
     }
 
@@ -1685,5 +1696,28 @@ This beta fixes package list behavior.
         .unwrap_err();
 
         assert!(error.to_string().contains("workflow"));
+    }
+
+    #[test]
+    fn updater_automation_accepts_a_main_branch_recovery_dispatch() {
+        let ctx = ReleaseContext::new("2.1.1", ReleaseChannel::Stable, None, None, None).unwrap();
+        let source_sha = "0123456789abcdef0123456789abcdef01234567";
+        let workflow_sha = "89abcdef0123456789abcdef0123456789abcdef";
+
+        validate_github_actions_context(
+            &ctx,
+            ReleaseAutomation::Updater,
+            source_sha,
+            "true",
+            "workflow_dispatch",
+            "refs/heads/main",
+            &ctx.repo,
+            workflow_sha,
+            &format!(
+                "{}/.github/workflows/release-updater.yml@refs/heads/main",
+                ctx.repo
+            ),
+        )
+        .unwrap();
     }
 }
