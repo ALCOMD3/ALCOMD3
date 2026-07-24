@@ -56,8 +56,7 @@ endpoint. The release is complete only after all of those checks pass.
 
 - Rust release version source: `[workspace.package].version` in `Cargo.toml`.
 - Rust workspace members inherit it with `version.workspace = true`.
-- `vrc-get-gui/package.json` and `website/package.json` are updated by
-  `cargo xtask release-prepare`.
+- `vrc-get-gui/package.json` is updated by `cargo xtask release-prepare`.
 - `Cargo.lock` and `package-lock.json` are generated files.
 - Updater JSON is regenerated from public Release assets by the published
   updater workflow and committed only after those assets pass verification.
@@ -70,8 +69,8 @@ Use exactly one channel.
 
 | Channel | Version example | GitHub Release type | Updater JSON |
 | --- | --- | --- | --- |
-| Stable | `2.0.1` | normal release | `website/public/api/gui/tauri-updater.json` |
-| Beta | `2.1.0-beta.1` | prerelease | `website/public/api/gui/tauri-updater-beta.json` |
+| Stable | `2.0.1` | normal release | Website repository `public/api/gui/tauri-updater.json` |
+| Beta | `2.1.0-beta.1` | prerelease | Website repository `public/api/gui/tauri-updater-beta.json` |
 
 The first formal multi-platform release was `2.1.2-beta.1`; `2.1.2` was the
 first stable release to adopt the same contract. Its manifest is published, so
@@ -192,7 +191,6 @@ Commit and push the source release commit:
 ```powershell
 git add Cargo.toml Cargo.lock
 git add vrc-get-gui/package.json vrc-get-gui/package-lock.json
-git add website/package.json website/package-lock.json
 git add "release-notes/ALCOMD3_$Version.md"
 git add "release-notes/ALCOMD3_$Version.updater-notes.json"
 git status --short
@@ -309,8 +307,7 @@ and source commit from GitHub.
 
 - derives the version and stable/beta channel from the published Release;
 - downloads the exact ten public assets and rejects any missing or unexpected asset;
-- requires the Release target, tag commit, and root/GUI/Website versions to
-  match exactly;
+- requires the Release target, tag commit, and root/GUI versions to match exactly;
 - verifies the three updater payloads and their Minisign signatures, each bound
   to its exact filename and authenticated `release` purpose;
 - reads the localized sidecar from the Release tag, then atomically regenerates
@@ -320,22 +317,21 @@ and source commit from GitHub.
   signature, and embedded public key before replacing the metadata file;
 - rejects updater version rollback and permits same-version retries only when
   they regenerate byte-identical metadata;
-- runs the website checks and build; the website derives the target channel's
-  three-platform downloads from its manifest plus `alcomd3.config.json`, leaves
-  the other channel unchanged, and never synthesizes links for legacy assets;
-- commits that updater JSON and pushes `main` only after the website passes;
+- clones the configured Website repository and writes the selected channel JSON
+  directly to its configured repository path;
+- commits and pushes only that JSON to the Website repository `main` branch;
 - waits for the public updater endpoint to expose the same version, three exact
   platform URLs, and signatures.
 
 After the public endpoint passes, the job summary records the version, channel,
 Release and source commit, whether a metadata commit was created, the final
-`main` commit, and the verified endpoint.
+Website repository commit, and the verified endpoint.
 
 The updater workflow does not receive the private signing key. Checkout does
 not persist credentials; `GH_TOKEN` is step-scoped and removed from non-GitHub
-cargo, npm, and git child processes. The push to `main` triggers the connected
+cargo and git child processes. The push to the Website repository triggers its
 Cloudflare Pages production deployment. Keep automatic production-branch
-deployment enabled for `main`.
+deployment enabled for that repository's `main`.
 
 ### 7. Confirm completion and handle retries
 
@@ -428,5 +424,6 @@ Stop the release if:
   no compatible Draft or an unexpected asset;
 - the updater signing key cannot be decrypted or does not match the embedded
   public key;
-- Cloudflare Pages automatic production deployment for `main` is disabled;
+- Cloudflare Pages automatic production deployment for the Website repository
+  `main` branch is disabled;
 - website updater JSON would be deployed before GitHub Release assets are public.

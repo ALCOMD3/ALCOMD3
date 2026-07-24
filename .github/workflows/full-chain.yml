@@ -237,34 +237,9 @@ jobs:
               if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
               shell: pwsh
               run: |
-                  function ConvertTo-CanonicalJsonValue {
-                      param([AllowNull()] $Value)
-
-                      if ($null -eq $Value) {
-                          return $null
-                      }
-                      if ($Value -is [pscustomobject]) {
-                          $result = [ordered] @{}
-                          foreach ($name in @($Value.PSObject.Properties.Name | Sort-Object)) {
-                              $result[$name] = ConvertTo-CanonicalJsonValue -Value $Value.$name
-                          }
-                          return [pscustomobject] $result
-                      }
-                      if ($Value -is [System.Collections.IEnumerable] -and $Value -isnot [string]) {
-                          $result = @()
-                          foreach ($item in $Value) {
-                              $result += ,(ConvertTo-CanonicalJsonValue -Value $item)
-                          }
-                          return ,$result
-                      }
-                      return $Value
-                  }
-
                   $config = Get-Content alcomd3.config.json -Raw | ConvertFrom-Json
                   foreach ($channel in @('stable', 'beta')) {
                       $manifestConfig = $config.updaterManifests.$channel
-                      $workspaceManifestPath = Join-Path $env:GITHUB_WORKSPACE $manifestConfig.workspacePath
-                      $workspaceManifestSource = Get-Content -LiteralPath $workspaceManifestPath -Raw -Encoding utf8
                       $downloadDirectory = Join-Path $env:RUNNER_TEMP "updater-$channel"
                       New-Item -ItemType Directory -Path $downloadDirectory -ErrorAction Stop | Out-Null
                       $manifestPath = Join-Path $downloadDirectory 'manifest.json'
@@ -277,15 +252,7 @@ jobs:
                           -MaximumRetryCount 3 `
                           -RetryIntervalSec 5
                       $manifestSource = Get-Content -LiteralPath $manifestPath -Raw -Encoding utf8
-                      $workspaceManifest = $workspaceManifestSource | ConvertFrom-Json
                       $manifest = $manifestSource | ConvertFrom-Json
-                      $normalizedWorkspaceManifest = ConvertTo-CanonicalJsonValue -Value $workspaceManifest |
-                          ConvertTo-Json -Depth 100 -Compress
-                      $normalizedPublicManifest = ConvertTo-CanonicalJsonValue -Value $manifest |
-                          ConvertTo-Json -Depth 100 -Compress
-                      if ($normalizedPublicManifest -cne $normalizedWorkspaceManifest) {
-                          throw "$channel public updater manifest differs from the checked-out manifest: $manifestUri"
-                      }
                       $downloadedAssets = 0
                       foreach ($platformProperty in $manifest.platforms.PSObject.Properties) {
                           $platformKey = $platformProperty.Name

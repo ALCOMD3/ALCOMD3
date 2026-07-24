@@ -1,18 +1,19 @@
 use crate::release_common::{
     CmdRunner, ReleaseAutomation, ReleaseChannel, ReleaseContext, UpdaterSignaturePurpose,
     cargo_xtask, check_public_updater_endpoint, check_worktree_clean, default_repo,
-    default_site_base_url, default_target, ensure_github_actions_context, gh, git, npm,
+    default_site_base_url, default_target, ensure_github_actions_context, gh, git,
     remove_github_auth_env, validate_full_git_sha, validate_release_source_versions,
     verify_github_release,
 };
 use anyhow::{Context, Result};
 use semver::Version;
 use serde::Deserialize;
+use std::path::PathBuf;
 use std::process::Command as ProcessCommand;
 use std::time::Duration;
 use toml_edit::DocumentMut;
 
-/// Verify public release assets, commit updater metadata, build the website, and optionally check the public endpoint.
+/// Verify public release assets, generate updater metadata, and optionally check the public endpoint.
 #[derive(clap::Parser)]
 pub struct Command {
     /// Release version, for example 2.0.1 or 2.1.0-beta.1.
@@ -39,17 +40,9 @@ pub struct Command {
     #[arg(long)]
     source_sha: Option<String>,
 
-    /// Commit the selected updater JSON after verification.
+    /// Write updater metadata to this path instead of the configured local output path.
     #[arg(long)]
-    commit: bool,
-
-    /// Push main after committing updater metadata. Requires --commit.
-    #[arg(long, requires = "commit")]
-    push: bool,
-
-    /// Skip local website check/build.
-    #[arg(long)]
-    skip_website_build: bool,
+    output: Option<PathBuf>,
 
     /// Check the public updater endpoint after deployment.
     #[arg(long)]
@@ -70,13 +63,20 @@ pub struct Command {
 
 impl crate::Command for Command {
     fn run(self) -> Result<i32> {
-        let ctx = ReleaseContext::new(
+        let mut ctx = ReleaseContext::new(
             self.version,
             self.channel,
             Some(self.repo),
             Some(self.site_base_url),
             Some(self.target),
         )?;
+        if let Some(output) = self.output {
+            ctx.updater_json = if output.is_absolute() {
+                output
+            } else {
+                ctx.workspace_root.join(output)
+            };
+        }
         let runner = CmdRunner::new(self.dry_run);
         let source_sha = self.source_sha.as_deref().unwrap_or("<source-sha>");
 
@@ -89,10 +89,6 @@ impl crate::Command for Command {
             validate_full_git_sha(source_sha)?;
             check_worktree_clean(&ctx)?;
         }
-        if self.push {
-            ensure_release_branch(&runner, &ctx)?;
-        }
-
         let published_at = verify_github_release(&ctx, &runner, Some(false), Some(source_sha))?;
         let published_at = if runner.dry_run() {
             published_at.unwrap_or_else(|| "<release-published-at>".to_string())
@@ -100,7 +96,7 @@ impl crate::Command for Command {
             published_at.context("published GitHub Release has no publishedAt timestamp")?
         };
         verify_release_tag_source(&runner, &ctx, source_sha)?;
-        let previous_updater = if self.dry_run {
+        let previous_updater = if self.dry_run || !ctx.updater_json.is_file() {
             None
         } else {
             Some(std::fs::read_to_string(&ctx.updater_json).with_context(|| {
@@ -118,6 +114,13 @@ impl crate::Command for Command {
         download_public_release_assets(&runner, &ctx)?;
         verify_downloaded_updater_signatures(&ctx)?;
         let updater_notes = load_release_updater_notes(&runner, &ctx)?;
+        if !runner.dry_run()
+            && let Some(parent) = ctx.updater_json.parent()
+        {
+            std::fs::create_dir_all(parent).with_context(|| {
+                format!("creating updater output directory {}", parent.display())
+            })?;
+        }
         generate_updater_json(&runner, &ctx, &updater_notes, &published_at)?;
         verify_with_downloaded_updaters(&runner, &ctx)?;
         if same_version {
@@ -131,24 +134,6 @@ impl crate::Command for Command {
                 previous_updater.as_deref() == Some(generated.as_str()),
                 "same-version updater regeneration changed metadata; explicit recovery is required"
             );
-        }
-
-        if !self.skip_website_build {
-            build_website(&runner, &ctx)?;
-        }
-
-        if self.commit {
-            let committed = commit_updater_metadata(&runner, &ctx)?;
-            if self.push && committed {
-                let mut cmd = git();
-                cmd.arg("push")
-                    .arg("origin")
-                    .arg("main")
-                    .current_dir(&ctx.workspace_root);
-                runner.run(cmd, "pushing updater metadata")?;
-            } else if self.push {
-                println!("updater metadata is unchanged; nothing to push");
-            }
         }
 
         if self.check_public {
@@ -169,8 +154,8 @@ impl crate::Command for Command {
             }
         } else {
             println!(
-                "deploy website/dist for {} before public endpoint verification",
-                ctx.site_base_url
+                "publish {} to the configured website repository before public endpoint verification",
+                ctx.updater_json.display()
             );
             println!("public updater endpoint: {}", ctx.updater_endpoint);
         }
@@ -206,7 +191,6 @@ fn download_public_release_assets_command(ctx: &ReleaseContext) -> ProcessComman
     cmd
 }
 
-
 fn verify_downloaded_updater_signatures(ctx: &ReleaseContext) -> Result<()> {
     let public_key = ctx
         .workspace_root
@@ -238,7 +222,6 @@ fn verify_release_tag_source(
 
     let cargo_toml = read_tag_file(runner, ctx, "Cargo.toml")?;
     let gui_package = read_tag_file(runner, ctx, "vrc-get-gui/package.json")?;
-    let website_package = read_tag_file(runner, ctx, "website/package.json")?;
     if runner.dry_run() {
         return Ok(());
     }
@@ -250,7 +233,7 @@ fn verify_release_tag_source(
         );
     }
 
-    validate_release_tag_source_versions(ctx, &cargo_toml, &gui_package, &website_package)
+    validate_release_tag_source_versions(ctx, &cargo_toml, &gui_package)
 }
 
 fn read_tag_file(runner: &CmdRunner, ctx: &ReleaseContext, path: &str) -> Result<String> {
@@ -271,7 +254,6 @@ fn validate_release_tag_source_versions(
     ctx: &ReleaseContext,
     cargo_toml: &str,
     gui_package: &str,
-    website_package: &str,
 ) -> Result<()> {
     let cargo = cargo_toml
         .parse::<DocumentMut>()
@@ -281,15 +263,7 @@ fn validate_release_tag_source_versions(
         .context("release tag Cargo.toml has no workspace.package.version")?;
     let gui: TaggedPackageJson =
         serde_json::from_str(gui_package).context("parsing GUI package.json from release tag")?;
-    let website: TaggedPackageJson = serde_json::from_str(website_package)
-        .context("parsing Website package.json from release tag")?;
-
-    validate_release_source_versions(
-        &ctx.version,
-        &[workspace_version.to_string()],
-        &gui.version,
-        &website.version,
-    )
+    validate_release_source_versions(&ctx.version, &[workspace_version.to_string()], &gui.version)
 }
 
 fn validate_updater_version_progression(current_json: &str, target_version: &str) -> Result<bool> {
@@ -387,107 +361,6 @@ fn verify_with_downloaded_updaters(runner: &CmdRunner, ctx: &ReleaseContext) -> 
     runner.run(cmd, "verifying updater JSON against public updater assets")
 }
 
-fn ensure_release_branch(runner: &CmdRunner, ctx: &ReleaseContext) -> Result<()> {
-    let mut cmd = git();
-    cmd.arg("branch")
-        .arg("--show-current")
-        .current_dir(&ctx.workspace_root);
-    remove_github_auth_env(&mut cmd);
-    let branch = runner.capture(cmd, "checking updater metadata branch")?;
-    if runner.dry_run() {
-        return Ok(());
-    }
-    validate_release_branch(branch.trim())
-}
-
-fn validate_release_branch(branch: &str) -> Result<()> {
-    anyhow::ensure!(
-        branch == "main",
-        "updater metadata must be committed and pushed from main, got `{branch}`"
-    );
-    Ok(())
-}
-
-fn commit_updater_metadata(runner: &CmdRunner, ctx: &ReleaseContext) -> Result<bool> {
-    let mut cmd = git();
-    cmd.arg("add")
-        .arg(&ctx.updater_json)
-        .current_dir(&ctx.workspace_root);
-    remove_github_auth_env(&mut cmd);
-    runner.run(cmd, "staging updater metadata")?;
-
-    let mut cmd = git();
-    cmd.arg("diff")
-        .arg("--cached")
-        .arg("--name-only")
-        .current_dir(&ctx.workspace_root);
-    remove_github_auth_env(&mut cmd);
-    let staged = runner.capture(cmd, "checking staged updater metadata")?;
-    let expected = ctx
-        .updater_json
-        .strip_prefix(&ctx.workspace_root)
-        .map_err(|_| anyhow::anyhow!("updater JSON is outside the workspace"))?
-        .to_string_lossy()
-        .replace('\\', "/");
-    if !runner.dry_run() && !validate_staged_updater_paths(&expected, &staged)? {
-        println!("updater metadata is already current");
-        return Ok(false);
-    }
-
-    let mut cmd = git();
-    cmd.arg("status")
-        .arg("--short")
-        .current_dir(&ctx.workspace_root);
-    remove_github_auth_env(&mut cmd);
-    runner.run(cmd, "showing staged updater metadata")?;
-
-    let mut cmd = git();
-    cmd.arg("commit")
-        .arg("-m")
-        .arg(format!(
-            "release: publish ALCOMD3 {} updater metadata",
-            ctx.version
-        ))
-        .current_dir(&ctx.workspace_root);
-    remove_github_auth_env(&mut cmd);
-    runner.run(cmd, "committing updater metadata")?;
-    Ok(true)
-}
-
-fn validate_staged_updater_paths(expected: &str, output: &str) -> Result<bool> {
-    let staged = output
-        .lines()
-        .map(|path| path.trim().replace('\\', "/"))
-        .filter(|path| !path.is_empty())
-        .collect::<Vec<_>>();
-    if staged.is_empty() {
-        return Ok(false);
-    }
-
-    for path in staged {
-        if path != expected {
-            anyhow::bail!("unexpected staged file while publishing updater metadata: {path}");
-        }
-    }
-    Ok(true)
-}
-
-fn build_website(runner: &CmdRunner, ctx: &ReleaseContext) -> Result<()> {
-    let mut cmd = npm();
-    cmd.arg("run")
-        .arg("check")
-        .current_dir(ctx.workspace_root.join("website"));
-    remove_github_auth_env(&mut cmd);
-    runner.run(cmd, "website check")?;
-
-    let mut cmd = npm();
-    cmd.arg("run")
-        .arg("build")
-        .current_dir(ctx.workspace_root.join("website"));
-    remove_github_auth_env(&mut cmd);
-    runner.run(cmd, "website build")
-}
-
 fn retry_public_check<F, S>(
     attempts: u32,
     delay: Duration,
@@ -521,8 +394,7 @@ where
 mod tests {
     use super::{
         download_public_release_assets_command, generate_updater_json_command,
-        release_updater_notes_command, retry_public_check, validate_release_branch,
-        validate_release_tag_source_versions, validate_staged_updater_paths,
+        release_updater_notes_command, retry_public_check, validate_release_tag_source_versions,
         validate_updater_version_progression,
     };
     use crate::release_common::{GH_TOKEN_ENV, GITHUB_TOKEN_ENV, ReleaseChannel, ReleaseContext};
@@ -610,32 +482,6 @@ mod tests {
     }
 
     #[test]
-    fn unchanged_updater_metadata_needs_no_commit() {
-        assert!(
-            !validate_staged_updater_paths("website/public/api/gui/tauri-updater.json", "",)
-                .unwrap()
-        );
-    }
-
-    #[test]
-    fn updater_metadata_commit_rejects_unrelated_staged_files() {
-        let error = validate_staged_updater_paths(
-            "website/public/api/gui/tauri-updater.json",
-            "Cargo.toml\nwebsite/public/api/gui/tauri-updater.json\n",
-        )
-        .unwrap_err();
-
-        assert!(error.to_string().contains("unexpected staged file"));
-    }
-
-    #[test]
-    fn updater_metadata_push_requires_main_branch() {
-        let error = validate_release_branch("feature/release-test").unwrap_err();
-
-        assert!(error.to_string().contains("main"));
-    }
-
-    #[test]
     fn updater_version_progression_accepts_newer_or_identical_versions() {
         assert!(validate_updater_version_progression(r#"{"version":"2.1.1"}"#, "2.1.1").unwrap());
         assert!(!validate_updater_version_progression(r#"{"version":"2.1.1"}"#, "2.2.0").unwrap());
@@ -658,21 +504,11 @@ mod tests {
 version = "2.1.1"
 "#;
 
-        validate_release_tag_source_versions(
-            &ctx,
-            cargo_toml,
-            r#"{"version":"2.1.1"}"#,
-            r#"{"version":"2.1.1"}"#,
-        )
-        .unwrap();
+        validate_release_tag_source_versions(&ctx, cargo_toml, r#"{"version":"2.1.1"}"#).unwrap();
 
-        let error = validate_release_tag_source_versions(
-            &ctx,
-            cargo_toml,
-            r#"{"version":"2.1.0"}"#,
-            r#"{"version":"2.1.1"}"#,
-        )
-        .unwrap_err();
+        let error =
+            validate_release_tag_source_versions(&ctx, cargo_toml, r#"{"version":"2.1.0"}"#)
+                .unwrap_err();
         assert!(error.to_string().contains("vrc-get-gui"));
     }
 }

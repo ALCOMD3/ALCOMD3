@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 pub struct Command {
     #[arg(long)]
     assets: PathBuf,
-    #[arg(long, default_value = "website/api/gui/tauri-updater.json")]
+    #[arg(long, default_value = "artifacts/release-updater/tauri-updater.json")]
     json: PathBuf,
     #[arg(long, default_value = "vrc-get-gui/src/updater-public-key.txt")]
     public_key: PathBuf,

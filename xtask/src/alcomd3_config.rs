@@ -15,6 +15,7 @@ pub struct Alcomd3Config {
     pub publisher_name: String,
     pub homepage_url: String,
     pub repository: String,
+    pub website_repository: String,
     pub tauri_identifier: String,
     pub legacy_tauri_identifier: String,
     pub windows_app_id: String,
@@ -42,7 +43,8 @@ pub struct UpdaterManifests {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdaterManifest {
-    pub workspace_path: String,
+    pub output_path: String,
+    pub repository_path: String,
     pub public_path: String,
 }
 
@@ -184,6 +186,7 @@ impl Alcomd3Config {
         ensure_non_empty("publisherName", &self.publisher_name)?;
         ensure_non_empty("homepageUrl", &self.homepage_url)?;
         ensure_non_empty("repository", &self.repository)?;
+        ensure_non_empty("websiteRepository", &self.website_repository)?;
         ensure_non_empty("tauriIdentifier", &self.tauri_identifier)?;
         ensure_non_empty("legacyTauriIdentifier", &self.legacy_tauri_identifier)?;
         ensure_non_empty("windowsAppId", &self.windows_app_id)?;
@@ -202,16 +205,24 @@ impl Alcomd3Config {
         ensure_non_empty("longDescription", &self.long_description)?;
         ensure_non_empty("copyright", &self.copyright)?;
         ensure_non_empty(
-            "updaterManifests.stable.workspacePath",
-            &self.updater_manifests.stable.workspace_path,
+            "updaterManifests.stable.outputPath",
+            &self.updater_manifests.stable.output_path,
+        )?;
+        ensure_non_empty(
+            "updaterManifests.stable.repositoryPath",
+            &self.updater_manifests.stable.repository_path,
         )?;
         ensure_non_empty(
             "updaterManifests.stable.publicPath",
             &self.updater_manifests.stable.public_path,
         )?;
         ensure_non_empty(
-            "updaterManifests.beta.workspacePath",
-            &self.updater_manifests.beta.workspace_path,
+            "updaterManifests.beta.outputPath",
+            &self.updater_manifests.beta.output_path,
+        )?;
+        ensure_non_empty(
+            "updaterManifests.beta.repositoryPath",
+            &self.updater_manifests.beta.repository_path,
         )?;
         ensure_non_empty(
             "updaterManifests.beta.publicPath",
@@ -242,6 +253,9 @@ impl Alcomd3Config {
         validate_release_platforms(&self.release_platforms)?;
         if !self.repository.contains('/') {
             bail!("repository must be in OWNER/REPO form");
+        }
+        if !self.website_repository.contains('/') {
+            bail!("websiteRepository must be in OWNER/REPO form");
         }
         if !self.windows_app_id.starts_with('{') || !self.windows_app_id.ends_with('}') {
             bail!("windowsAppId must include surrounding braces");

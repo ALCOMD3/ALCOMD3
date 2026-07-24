@@ -12,7 +12,7 @@ on:
                 type: string
 
 permissions:
-    contents: write
+    contents: read
 
 concurrency:
     group: release-updater-main
@@ -38,13 +38,6 @@ jobs:
                   ref: main
                   fetch-depth: 0
                   persist-credentials: false
-
-            - name: Set up Node.js 24
-              uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-              with:
-                  node-version: 24
-                  cache: npm
-                  cache-dependency-path: website/package-lock.json
 
             - name: Set up pinned Rust toolchain
               shell: pwsh
@@ -101,20 +94,9 @@ jobs:
                   "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
                   "CHANNEL=$channel" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-            - name: Install Website dependencies
-              working-directory: website
-              shell: pwsh
-              run: npm.cmd ci
-
             - name: Build release tooling without GitHub token
               shell: pwsh
               run: cargo build --profile xtask --target x86_64-pc-windows-msvc --package xtask
-
-            - name: Configure updater commit author
-              shell: pwsh
-              run: |
-                  git config user.name "github-actions[bot]"
-                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
             - name: Configure GitHub authentication
               env:
@@ -122,35 +104,10 @@ jobs:
               shell: pwsh
               run: gh auth setup-git --hostname github.com
 
-            - name: Generate, verify, test, and publish updater metadata to main
+            - name: Generate and publish updater metadata to Website repository
               id: publish_updater
               env:
                   GH_TOKEN: ${{ github.token }}
-              shell: pwsh
-              run: |
-                  $before = (git rev-parse --verify HEAD).Trim()
-                  if ($LASTEXITCODE -ne 0) {
-                      exit $LASTEXITCODE
-                  }
-                  & $env:XTASK_PATH release-updater `
-                      --version $env:VERSION `
-                      --channel $env:CHANNEL `
-                      --source-sha $env:RELEASE_SOURCE_SHA `
-                      --commit `
-                      --push
-                  if ($LASTEXITCODE -ne 0) {
-                      exit $LASTEXITCODE
-                  }
-                  $after = (git rev-parse --verify HEAD).Trim()
-                  if ($LASTEXITCODE -ne 0) {
-                      exit $LASTEXITCODE
-                  }
-                  $changed = ($before -ne $after).ToString().ToLowerInvariant()
-                  "metadata_changed=$changed" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-                  "main_sha=$after" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-
-            - name: Sync updater metadata to Website repository
-              env:
                   WEBSITE_DEPLOY_KEY: ${{ secrets.ALCOMD3_WEBSITE_DEPLOY_KEY }}
               shell: pwsh
               run: |
@@ -166,9 +123,13 @@ jobs:
                   if ($null -eq $manifest) {
                       throw "Updater manifest is not configured for channel $env:CHANNEL"
                   }
-                  $sourceManifest = Join-Path $env:GITHUB_WORKSPACE $manifest.workspacePath
-                  if (-not (Test-Path -LiteralPath $sourceManifest -PathType Leaf)) {
-                      throw "Generated updater manifest is missing: $sourceManifest"
+                  $relativeTarget = [string] $manifest.repositoryPath
+                  if (
+                      [string]::IsNullOrWhiteSpace($relativeTarget) -or
+                      [IO.Path]::IsPathRooted($relativeTarget) -or
+                      $relativeTarget.Replace('\', '/').Split('/') -contains '..'
+                  ) {
+                      throw "Updater repositoryPath must be a safe relative path"
                   }
 
                   $sshDirectory = Join-Path $env:RUNNER_TEMP 'alcomd3-website-ssh'
@@ -190,10 +151,17 @@ jobs:
                           exit $LASTEXITCODE
                       }
 
-                      $relativeTarget = "public/$($manifest.publicPath.TrimStart('/'))"
                       $targetManifest = Join-Path $websiteDirectory $relativeTarget.Replace('/', [IO.Path]::DirectorySeparatorChar)
                       New-Item -ItemType Directory -Path (Split-Path -Parent $targetManifest) -Force | Out-Null
-                      Copy-Item -LiteralPath $sourceManifest -Destination $targetManifest -Force
+
+                      & $env:XTASK_PATH release-updater `
+                          --version $env:VERSION `
+                          --channel $env:CHANNEL `
+                          --source-sha $env:RELEASE_SOURCE_SHA `
+                          --output $targetManifest
+                      if ($LASTEXITCODE -ne 0) {
+                          exit $LASTEXITCODE
+                      }
 
                       git -C $websiteDirectory config user.name "github-actions[bot]"
                       git -C $websiteDirectory config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -209,9 +177,19 @@ jobs:
                           if ($LASTEXITCODE -ne 0) {
                               exit $LASTEXITCODE
                           }
+                          $changed = "true"
                       } elseif ($diffExit -ne 0) {
                           exit $diffExit
+                      } else {
+                          $changed = "false"
                       }
+                      $websiteSha = (git -C $websiteDirectory rev-parse --verify HEAD).Trim()
+                      if ($LASTEXITCODE -ne 0) {
+                          exit $LASTEXITCODE
+                      }
+                      "manifest_path=$targetManifest" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                      "metadata_changed=$changed" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                      "website_sha=$websiteSha" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
                   } finally {
                       Remove-Item -LiteralPath $keyPath -Force -ErrorAction SilentlyContinue
                   }
@@ -219,13 +197,14 @@ jobs:
             - name: Verify public updater endpoint
               env:
                   GH_TOKEN: ${{ github.token }}
+                  UPDATER_MANIFEST_PATH: ${{ steps.publish_updater.outputs.manifest_path }}
               shell: pwsh
               run: |
                   & $env:XTASK_PATH release-updater `
                       --version $env:VERSION `
                       --channel $env:CHANNEL `
                       --source-sha $env:RELEASE_SOURCE_SHA `
-                      --skip-website-build `
+                      --output $env:UPDATER_MANIFEST_PATH `
                       --check-public `
                       --public-check-attempts 30 `
                       --public-check-delay-seconds 20
@@ -238,7 +217,7 @@ jobs:
               env:
                   GH_TOKEN: ${{ github.token }}
                   METADATA_CHANGED: ${{ steps.publish_updater.outputs.metadata_changed }}
-                  MAIN_SHA: ${{ steps.publish_updater.outputs.main_sha }}
+                  WEBSITE_SHA: ${{ steps.publish_updater.outputs.website_sha }}
               shell: pwsh
               run: |
                   $releaseJson = gh release view $env:RELEASE_TAG `
@@ -271,6 +250,6 @@ jobs:
                       "| Channel | $env:CHANNEL |",
                       "| Release source SHA | $env:RELEASE_SOURCE_SHA |",
                       "| Metadata update | $metadataStatus |",
-                      "| Final main SHA | $env:MAIN_SHA |",
+                      "| Final Website SHA | $env:WEBSITE_SHA |",
                       "| Public endpoint | Passed: [$endpoint]($endpoint) |"
                   ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append

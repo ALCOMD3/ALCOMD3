@@ -63,7 +63,6 @@ updater manifest 路径、三平台发布 catalog（target、bundle type、updat
 - `vrc-get-gui/bundle/windows-setup.iss`
 - `vrc-get-gui/bundle/alcomd3.desktop`
 - `vrc-get-gui/bundle/deb-control`
-- `website/src/data/site.config.mjs`
 
 这些文件仍保留原位置。`cargo test -p xtask alcomd3_identity` 会校验它们是否与
 `alcomd3.config.json` 一致，从而在不新增生成步骤的情况下发现模板漂移。`repositories.txt`

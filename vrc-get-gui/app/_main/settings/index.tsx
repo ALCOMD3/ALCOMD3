@@ -45,9 +45,7 @@ import {
 	UnityArgumentsSettings,
 	useUnityArgumentsSettings,
 } from "@/components/unity-arguments-settings";
-import {
-	loadAlcomd3Contributors,
-} from "@/lib/alcomd3-contributors";
+import { loadAlcomd3Contributors } from "@/lib/alcomd3-contributors";
 import { assertNever } from "@/lib/assert-never";
 import type { OpenOptions, UnityHubAccessMethod } from "@/lib/bindings";
 import { commands } from "@/lib/bindings";

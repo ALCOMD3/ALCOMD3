@@ -11,7 +11,6 @@ release steps、user-facing technical documentation を探すときはここか�
 - Contribution rules: [../../CONTRIBUTING/CONTRIBUTING.ja.md](../../CONTRIBUTING/CONTRIBUTING.ja.md)
 - Licensing notes: [../../LICENSE-NOTES.md](../../LICENSE-NOTES.md)
 - Agent rules: [../../AGENTS.md](../../AGENTS.md)
-- Website-specific agent rules: [../../website/AGENTS.md](../../website/AGENTS.md)
 
 ### Maintainer documentation
 

@@ -68,7 +68,6 @@ metadata、description、copyright を管理する。
 - `vrc-get-gui/bundle/windows-setup.iss`
 - `vrc-get-gui/bundle/alcomd3.desktop`
 - `vrc-get-gui/bundle/deb-control`
-- `website/src/data/site.config.mjs`
 
 これらのファイルは現在の場所に維持する。`cargo test -p xtask alcomd3_identity` が
 `alcomd3.config.json` との一致を確認するため、生成ステップを増やさずに template drift

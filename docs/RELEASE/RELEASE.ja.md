@@ -48,8 +48,7 @@ complete とする。
 
 - Rust release version source: root `Cargo.toml` の `[workspace.package].version`。
 - Rust workspace members は `version.workspace = true` で継承する。
-- `vrc-get-gui/package.json` と `website/package.json` は
-  `cargo xtask release-prepare` が更新する。
+- `vrc-get-gui/package.json` は `cargo xtask release-prepare` が更新する。
 - `Cargo.lock` と `package-lock.json` は generated files。
 - Updater JSON は published updater workflow が public Release assets から再生成・検証し、
   検証成功後だけ commit する。
@@ -61,8 +60,8 @@ Channel は 1 つだけ使う。
 
 | Channel | Version example | GitHub Release type | Updater JSON |
 | --- | --- | --- | --- |
-| Stable | `2.0.1` | normal release | `website/public/api/gui/tauri-updater.json` |
-| Beta | `2.1.0-beta.1` | prerelease | `website/public/api/gui/tauri-updater-beta.json` |
+| Stable | `2.0.1` | normal release | Website repository `public/api/gui/tauri-updater.json` |
+| Beta | `2.1.0-beta.1` | prerelease | Website repository `public/api/gui/tauri-updater-beta.json` |
 
 最初の正式な multi-platform release は `2.1.2-beta.1` で、`2.1.2` は同じ contract を
 採用した最初の stable release。Manifest は公開済みのため、stable catalog は 3-platform
@@ -173,7 +172,6 @@ Source release commit を commit/push する:
 ```powershell
 git add Cargo.toml Cargo.lock
 git add vrc-get-gui/package.json vrc-get-gui/package-lock.json
-git add website/package.json website/package-lock.json
 git add "release-notes/ALCOMD3_$Version.md"
 git add "release-notes/ALCOMD3_$Version.updater-notes.json"
 git status --short
@@ -274,7 +272,7 @@ Draft の publish により **Publish updater metadata** が起動する。Fresh
 
 - Published Release から version と stable/beta channel を導出する。
 - 10 public assets を正確に download し、asset の不足や追加を拒否する。
-- Release target、tag commit、root/GUI/Website version の完全一致を要求する。
+- Release target、tag commit、root/GUI version の完全一致を要求する。
 - 3 updater payloads と Minisign signatures を検証し、各 signature が exact filename と
   authenticated `release` purpose に bind されていることを確認する。
 - Release tag から localized sidecar を読み、Release `publishedAt` を固定 `pub_date` として、
@@ -282,19 +280,19 @@ Draft の publish により **Publish updater metadata** が起動する。Fresh
 - Metadata file を置換する前に、各 platform entry の version、exact URL、signature filename、
   signature、embedded public key を検証する。
 - Updater version rollback を拒否し、same-version retry は byte-identical metadata のみ許可する。
-- Website check/build を実行する。Website は target channel manifest と
-  `alcomd3.config.json` から 3-platform downloads を導出し、もう一方の channel は変更せず、
-  legacy assets の link を合成しない。
-- Website 成功後だけ updater JSON を commit して `main` を push する。
+- 設定された Website repository を clone し、selected channel JSON を設定済み repository
+  path に直接書き込む。
+- Website repository ではその JSON だけを commit し、`main` を push する。
 - Public updater endpoint が同じ version、3 exact platform URLs、signatures を返すまで待つ。
 
 Public endpoint 成功後、Job Summary に version、channel、Release / source commit、metadata
-commit 作成有無、final `main` commit、verified endpoint を記録する。
+commit 作成有無、final Website repository commit、verified endpoint を記録する。
 
 Updater workflow は private key を受け取らない。Checkout credentials は persist せず、
-`GH_TOKEN` は必要な steps だけに公開し、non-GitHub cargo/npm/git child process から
-除去する。`main` への push により接続済み Cloudflare Pages production deployment が
-起動するため、`main` の automatic production branch deployment を有効のままにする。
+`GH_TOKEN` は必要な steps だけに公開し、non-GitHub cargo/git child process から
+除去する。Website repository の `main` への push により、その repository に接続した
+Cloudflare Pages production deployment が起動するため、automatic production branch
+deployment を有効のままにする。
 
 ### 7. 完了と retry を確認する
 
@@ -378,5 +376,5 @@ JSON は commit しない。
 - initial Draft creation で Release がすでに存在する、または replacement 対象の compatible
   Draft がない、もしくは unexpected asset がある。
 - updater private key を復号できない、または GUI embedded public key と一致しない。
-- Cloudflare Pages の `main` production automatic deployment が無効。
+- Cloudflare Pages の Website repository `main` production automatic deployment が無効。
 - GitHub Release assets が public になる前に website updater JSON を deploy しようとしている。

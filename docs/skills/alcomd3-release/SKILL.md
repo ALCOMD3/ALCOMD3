@@ -29,8 +29,8 @@ description: 完成或审计 ALCOMD3 的 stable/beta 三平台发布与 release 
 3. `Build release draft` 的三个平台 shard 与统一汇总全部成功；
 4. GitHub Release 精确包含 10 个正式资产，Draft 已按授权公开；
 5. `Publish updater metadata` 已验证公开 Release 与全部资产；
-6. 目标 channel 的 updater JSON 已原子更新为三个平台并推送 `main`；
-7. Cloudflare Pages 已部署该 commit；
+6. 目标 channel 的 updater JSON 已原子更新为三个平台并推送网站仓库 `main`；
+7. Cloudflare Pages 已部署网站仓库的该 commit；
 8. public updater endpoint 与仓库 JSON 字节语义一致；
 9. 官网只展示实际已发布的下载链接，Windows、macOS 和 Linux 链接均可访问；
 10. 三个平台的 updater payload 与浏览器安装包均符合共享配置声明的更新模式。
@@ -238,7 +238,6 @@ cargo xtask release-prepare --version $Version --channel $Channel
 cargo xtask release-validate --version $Version --channel $Channel
 git add Cargo.toml Cargo.lock
 git add vrc-get-gui/package.json vrc-get-gui/package-lock.json
-git add website/package.json website/package-lock.json
 git add "release-notes/ALCOMD3_$Version.md"
 git add "release-notes/ALCOMD3_$Version.updater-notes.json"
 git diff --cached --check
@@ -319,9 +318,9 @@ Windows job 还必须确认：
 4. 从 tag 读取 updater notes，以 Release `publishedAt` 作为确定的 `pub_date`；
 5. 一次性生成包含三个 platform key 的目标 channel JSON；
 6. 拒绝版本回退；同版本重跑必须生成字节一致的 JSON；
-7. 运行官网 check/build；
-8. 只提交目标 channel updater JSON，并推送主仓库 `main`；
-9. 使用网站仓库专用 deploy key 将目标 JSON 实时同步到配置的网站仓库 `main`；
+7. 使用网站仓库专用 deploy key 克隆配置的网站仓库；
+8. 将目标 channel updater JSON 直接生成到网站仓库的配置路径；
+9. 只提交目标 JSON，并推送网站仓库 `main`；
 10. 等待 Cloudflare Pages 部署，轮询 public endpoint，直到与生成 JSON 完全一致。
 
 不能在 Windows 资产成功但 macOS/Linux 失败时发布部分 metadata。三个平台必须原子上线。
@@ -395,10 +394,6 @@ npm.cmd test
 npm.cmd run build
 Pop-Location
 
-Push-Location website
-npm.cmd run check
-npm.cmd test
-Pop-Location
 ```
 
 修改 workflow 后还要让 PR 的 `Continuous integration` 与三平台
@@ -438,7 +433,7 @@ job 证明，正式 Windows 安装器升级链只能由 `release-draft.yml` 的 
 - 三个平台 build job、Windows 固定基线可用性与适用的正式安装器 smoke、各平台按共享配置
   完成的打包/签名/更新模式验证、统一汇总结果；
 - 10 资产清单与 manifest/attestation 结果；
-- updater metadata commit、目标 JSON 与三平台签名验证；
+- 网站仓库 updater metadata commit、目标 JSON 与三平台签名验证；
 - Cloudflare Pages 与 public endpoint；
 - 官网 Windows/macOS/Linux 下载链接；
 - 未覆盖的真实平台测试或仍需人工检查的风险。

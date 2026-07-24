@@ -111,11 +111,13 @@
     "copyright": "(c) anatawa12 and other contributors; (c) 2026 CQMHV and ALCOMD3 contributors",
     "updaterManifests": {
         "stable": {
-            "workspacePath": "website/public/api/gui/tauri-updater.json",
+            "outputPath": "artifacts/release-updater/tauri-updater.json",
+            "repositoryPath": "public/api/gui/tauri-updater.json",
             "publicPath": "/api/gui/tauri-updater.json"
         },
         "beta": {
-            "workspacePath": "website/public/api/gui/tauri-updater-beta.json",
+            "outputPath": "artifacts/release-updater/tauri-updater-beta.json",
+            "repositoryPath": "public/api/gui/tauri-updater-beta.json",
             "publicPath": "/api/gui/tauri-updater-beta.json"
         }
     },

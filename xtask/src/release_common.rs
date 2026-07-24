@@ -112,7 +112,6 @@ pub struct ReleaseContext {
     pub version: String,
     pub channel: ReleaseChannel,
     pub repo: String,
-    pub site_base_url: String,
     pub workspace_root: PathBuf,
     pub tag: String,
     pub release_notes: PathBuf,
@@ -143,7 +142,7 @@ impl ReleaseContext {
             .join("release-notes")
             .join(format!("ALCOMD3_{version}.md"));
         let updater_json = config.workspace_path(
-            &channel.updater_manifest(&config).workspace_path,
+            &channel.updater_manifest(&config).output_path,
             &workspace_root,
         );
         let updater_endpoint = channel.updater_endpoint(&config, &site_base_url);
@@ -152,7 +151,6 @@ impl ReleaseContext {
             version,
             channel,
             repo,
-            site_base_url,
             workspace_root,
             tag,
             release_notes,
@@ -283,7 +281,6 @@ pub fn validate_release_source_versions(
     expected: &str,
     workspace_versions: &[String],
     gui_version: &str,
-    website_version: &str,
 ) -> Result<()> {
     for version in workspace_versions {
         if version != expected {
@@ -292,9 +289,6 @@ pub fn validate_release_source_versions(
     }
     if gui_version != expected {
         bail!("vrc-get-gui package version mismatch: expected {expected}, got {gui_version}");
-    }
-    if website_version != expected {
-        bail!("website package version mismatch: expected {expected}, got {website_version}");
     }
     Ok(())
 }
@@ -383,9 +377,7 @@ fn validate_github_actions_context(
         } else {
             automation.event_name()
         };
-        bail!(
-            "unexpected GitHub Actions event: expected {expected_event}, got {event_name}"
-        );
+        bail!("unexpected GitHub Actions event: expected {expected_event}, got {event_name}");
     }
 
     let expected_ref = if updater_dispatch {
@@ -1401,8 +1393,7 @@ This beta fixes package list behavior.
 
     #[test]
     fn release_source_versions_accept_matching_versions() {
-        validate_release_source_versions("2.1.1", &["2.1.1".to_string()], "2.1.1", "2.1.1")
-            .unwrap();
+        validate_release_source_versions("2.1.1", &["2.1.1".to_string()], "2.1.1").unwrap();
     }
 
     #[test]
@@ -1427,7 +1418,6 @@ This beta fixes package list behavior.
             "2.1.1",
             &["2.1.0".to_string(), "2.1.1".to_string()],
             "2.1.1",
-            "2.1.1",
         )
         .unwrap_err();
 
@@ -1437,8 +1427,7 @@ This beta fixes package list behavior.
     #[test]
     fn release_source_versions_reject_npm_mismatch() {
         let error =
-            validate_release_source_versions("2.1.1", &["2.1.1".to_string()], "2.1.0", "2.1.1")
-                .unwrap_err();
+            validate_release_source_versions("2.1.1", &["2.1.1".to_string()], "2.1.0").unwrap_err();
 
         assert!(error.to_string().contains("vrc-get-gui package version"));
     }

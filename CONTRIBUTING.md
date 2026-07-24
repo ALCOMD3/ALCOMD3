@@ -20,7 +20,8 @@ ALCOMD3's current architecture, especially the GUI/MCP shared operation model.
 - MCP bridge code lives in `alcomd3-mcp/`.
 - MCP IPC protocol types live in `alcomd3-mcp-protocol/`.
 - Release and packaging helpers live in `xtask/`.
-- Website code lives in `website/`.
+- Website code lives in the separate
+  [ALCOMD3-Website repository](https://github.com/ALCOMD3/ALCOMD3-Website).
 
 Some directory and package names still use `vrc-get` for compatibility and
 historical reasons. Do not rename them unless the change is explicitly scoped
@@ -132,4 +133,5 @@ and safety checks.
   public configuration changes.
 - Avoid unrelated formatting churn.
 
-For website-specific work, also read `website/AGENTS.md`.
+For website-specific work, use the separate Website repository and follow its
+local contributor and agent rules.

@@ -109,7 +109,6 @@ impl crate::Command for Command {
             }
         }
 
-
         if self.replace_assets {
             ensure_github_release_is_draft(&ctx, &runner)?;
             update_release_metadata(&runner, &ctx, source_sha)?;
@@ -135,7 +134,6 @@ impl crate::Command for Command {
         Ok(0)
     }
 }
-
 
 fn create_release(runner: &CmdRunner, ctx: &ReleaseContext, target_commit: &str) -> Result<()> {
     runner.run(

@@ -18,7 +18,8 @@ GUI/MCP が共有する操作モデルに合わせて確認し、適用する必
 - MCP bridge コードは `alcomd3-mcp/` にある。
 - MCP IPC protocol 型は `alcomd3-mcp-protocol/` にある。
 - リリースとパッケージング補助は `xtask/` にある。
-- Website コードは `website/` にある。
+- Website コードは独立した
+  [ALCOMD3-Website repository](https://github.com/ALCOMD3/ALCOMD3-Website) にある。
 
 一部のディレクトリ名や package 名には互換性と履歴上の理由で `vrc-get` が残っている。
 互換性移行として明示的に範囲指定されていない限り、リネームしない。
@@ -122,4 +123,5 @@ resource locking、MCP visibility に触れる変更は特に注意する。GUI 
 - 挙動、互換性、packaging、public configuration が変わる場合は docs と release notes を更新する。
 - 無関係な formatting churn を避ける。
 
-Website 関連作業では `website/AGENTS.md` も読む。
+Website 関連作業は独立 Website repository で行い、その repository の contributor /
+agent rules に従う。

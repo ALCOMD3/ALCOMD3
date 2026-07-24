@@ -70,14 +70,8 @@ pub fn ensure_release_source_versions_ready(ctx: &ReleaseContext) -> Result<()> 
         .map(|package| package.version.to_string())
         .collect::<Vec<_>>();
     let gui_version = read_package_version(&ctx.workspace_root.join("vrc-get-gui/package.json"))?;
-    let website_version = read_package_version(&ctx.workspace_root.join("website/package.json"))?;
 
-    validate_release_source_versions(
-        &ctx.version,
-        &workspace_versions,
-        &gui_version,
-        &website_version,
-    )?;
+    validate_release_source_versions(&ctx.version, &workspace_versions, &gui_version)?;
     Ok(())
 }
 

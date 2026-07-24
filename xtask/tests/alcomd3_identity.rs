@@ -277,36 +277,6 @@ fn windows_setup_extracts_webview2_before_installing_it() {
 }
 
 #[test]
-fn website_site_config_uses_shared_alcomd3_config() {
-    let site_config = read_workspace_file("website/src/data/site.config.mjs");
-    let downloads = read_workspace_file("website/src/data/downloads.mjs");
-
-    for expected in [
-        "alcomd3.config.json",
-        "homepageUrl",
-        "productName",
-        "publisherName",
-        "repository",
-        "createDownloadCatalog",
-        "createStableDownloadCatalog",
-        "stableRelease",
-        "betaDownloads",
-    ] {
-        assert!(
-            site_config.contains(expected),
-            "website site.config.mjs should reference shared config field `{expected}`"
-        );
-    }
-
-    for expected in ["releasePlatforms", "assetPattern"] {
-        assert!(
-            downloads.contains(expected),
-            "website downloads.mjs should consume shared release field `{expected}`"
-        );
-    }
-}
-
-#[test]
 fn gui_and_mcp_use_shared_application_paths() {
     let environment_io = read_workspace_file("vrc-get-vpm/src/io/tokio.rs");
     assert!(

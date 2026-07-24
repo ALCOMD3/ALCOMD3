@@ -6,7 +6,7 @@ use crate::release_common::{
 use crate::utils::command::CommandExt;
 use anyhow::Result;
 
-/// Prepare release source files: workspace version, npm versions, lockfiles, and release notes.
+/// Prepare release source files: workspace version, GUI npm version, lockfiles, and release notes.
 #[derive(clap::Parser)]
 pub struct Command {
     /// Release version, for example 2.0.1 or 2.1.0-beta.1.
@@ -60,11 +60,9 @@ impl crate::Command for Command {
         update_workspace_version(&ctx, self.dry_run)?;
         refresh_cargo_lockfile(&runner, &ctx)?;
         update_npm_package(&runner, &ctx, "vrc-get-gui")?;
-        update_npm_package(&runner, &ctx, "website")?;
 
         if !self.skip_lockfile {
             refresh_npm_lockfile(&runner, &ctx, "vrc-get-gui")?;
-            refresh_npm_lockfile(&runner, &ctx, "website")?;
         }
 
         create_release_notes_if_missing(&ctx, self.dry_run)?;

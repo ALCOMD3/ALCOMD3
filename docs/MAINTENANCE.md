@@ -76,7 +76,6 @@ their own file formats directly:
 - `vrc-get-gui/bundle/windows-setup.iss`
 - `vrc-get-gui/bundle/alcomd3.desktop`
 - `vrc-get-gui/bundle/deb-control`
-- `website/src/data/site.config.mjs`
 
 Keep those files in place. `cargo test -p xtask alcomd3_identity` checks them
 against `alcomd3.config.json` so template drift is caught without adding a

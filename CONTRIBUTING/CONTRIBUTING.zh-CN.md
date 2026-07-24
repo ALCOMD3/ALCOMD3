@@ -16,7 +16,8 @@ ALCOMD3 作为独立项目维护。当前仓库、文档、发布流程和用户
 - MCP bridge 代码位于 `alcomd3-mcp/`。
 - MCP IPC 协议类型位于 `alcomd3-mcp-protocol/`。
 - 发布和打包辅助任务位于 `xtask/`。
-- 网站代码位于 `website/`。
+- 网站代码位于独立的
+  [ALCOMD3-Website 仓库](https://github.com/ALCOMD3/ALCOMD3-Website)。
 
 部分目录和包名仍因兼容性与历史原因使用 `vrc-get`。除非明确作为兼容性迁移，否则不要重命名。
 
@@ -111,4 +112,4 @@ GUI 和 MCP bridge 应继续共享同一套后端业务逻辑和安全检查。
 - 行为、兼容性、打包或公开配置变化时，更新文档和 release notes。
 - 避免无关格式化 churn。
 
-网站相关工作还需阅读 `website/AGENTS.md`。
+网站相关工作应在独立网站仓库中进行，并遵循该仓库自身的贡献与 Agent 规则。

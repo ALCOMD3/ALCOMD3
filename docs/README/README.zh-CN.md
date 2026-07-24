@@ -10,7 +10,6 @@
 - 贡献规则：[../../CONTRIBUTING/CONTRIBUTING.zh-CN.md](../../CONTRIBUTING/CONTRIBUTING.zh-CN.md)
 - 许可证说明：[../../LICENSE-NOTES.md](../../LICENSE-NOTES.md)
 - Agent 规则：[../../AGENTS.md](../../AGENTS.md)
-- 网站专用 Agent 规则：[../../website/AGENTS.md](../../website/AGENTS.md)
 
 ### 维护者文档
 

@@ -1,0 +1,9 @@
+{
+    "en": "Website publishing is now separated from the application repository, with updater metadata published directly to the dedicated website repository.",
+    "de": "Die Website-Veröffentlichung ist jetzt vom Anwendungsrepository getrennt; Updater-Metadaten werden direkt im dedizierten Website-Repository veröffentlicht.",
+    "fr": "La publication du site est désormais séparée du dépôt de l’application, et les métadonnées de mise à jour sont publiées directement dans le dépôt dédié au site.",
+    "ja": "Web サイトの公開をアプリケーションリポジトリから分離し、updater metadata を専用 Web サイトリポジトリへ直接公開するようにしました。",
+    "ko": "웹사이트 게시를 애플리케이션 저장소에서 분리하고 updater 메타데이터를 전용 웹사이트 저장소에 직접 게시하도록 변경했습니다.",
+    "zh_hans": "网站发布现已与应用仓库分离，updater 元数据会直接发布到独立的网站仓库。",
+    "zh_hant": "網站發佈現已與應用程式儲存庫分離，updater 中繼資料會直接發佈到獨立的網站儲存庫。"
+}

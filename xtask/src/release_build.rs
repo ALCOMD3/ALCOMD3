@@ -171,8 +171,6 @@ fn run_validation(runner: &CmdRunner, ctx: &ReleaseContext) -> Result<()> {
     for (directory, script, what) in [
         ("vrc-get-gui", "check", "GUI check"),
         ("vrc-get-gui", "lint", "GUI lint"),
-        ("website", "check", "website check"),
-        ("website", "build", "website build"),
     ] {
         let mut cmd = npm();
         cmd.arg("run")

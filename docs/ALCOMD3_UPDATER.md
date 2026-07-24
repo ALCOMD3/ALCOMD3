@@ -164,7 +164,7 @@ installer; use this command for local artifact verification:
 $Assets = "artifacts\release-check\v2.1.2-beta.1"
 cargo xtask verify-alcom-updater-json `
     --assets $Assets `
-    --json "website\public\api\gui\tauri-updater-beta.json" `
+    --json "artifacts\release-updater\tauri-updater-beta.json" `
     --expected-signature-purpose release
 ```
 

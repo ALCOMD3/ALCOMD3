@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="../website/public/assets/logo.png" alt="ALCOMD3 標誌" width="160">
+    <img src="https://alcomd3.cqmhv.com/assets/logo.png" alt="ALCOMD3 標誌" width="160">
 </p>
 
 <h1 align="center">ALCOMD3</h1>

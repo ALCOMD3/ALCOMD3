@@ -28,24 +28,23 @@ if ($migrationSemanticVersion -ge $currentSemanticVersion) {
     throw "Legacy Windows migration release must be older than the current version: $migrationReleaseTag"
 }
 
-$repositoryReleasesJson = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100"
-if ($LASTEXITCODE -ne 0) {
-    exit $LASTEXITCODE
-}
-$matchingReleases = @(
-    $repositoryReleasesJson `
-        | ConvertFrom-Json `
-        | Where-Object { $_.tag_name -ceq $migrationReleaseTag }
+$encodedTag = [uri]::EscapeDataString($migrationReleaseTag)
+$releaseResult = @(
+    gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$encodedTag" 2>&1
 )
-if ($matchingReleases.Count -eq 0) {
-    Write-Warning "Migration baseline $migrationReleaseTag is not published in $env:GITHUB_REPOSITORY; running installer smoke without a previous installer."
-    return
-}
-if ($matchingReleases.Count -ne 1) {
-    throw "Migration release $migrationReleaseTag resolved to $($matchingReleases.Count) releases in $env:GITHUB_REPOSITORY"
+if ($LASTEXITCODE -ne 0) {
+    $releaseError = $releaseResult -join [Environment]::NewLine
+    if ($releaseError -match 'HTTP 404|Not Found') {
+        Write-Warning "Migration baseline $migrationReleaseTag is not published in $env:GITHUB_REPOSITORY; running installer smoke without a previous installer."
+        return
+    }
+    throw "Failed to resolve migration release $migrationReleaseTag`: $releaseError"
 }
 
-$previousRelease = $matchingReleases[0]
+$previousRelease = ($releaseResult -join [Environment]::NewLine) | ConvertFrom-Json
+if ($previousRelease.tag_name -cne $migrationReleaseTag) {
+    throw "Migration release tag mismatch: expected $migrationReleaseTag, got $($previousRelease.tag_name)"
+}
 if ($previousRelease.draft -or $previousRelease.prerelease) {
     throw "Legacy Windows migration release must be a published stable release: $migrationReleaseTag"
 }

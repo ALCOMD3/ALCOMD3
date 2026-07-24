@@ -13,7 +13,6 @@ documentation.
 - Contribution rules: [../CONTRIBUTING.md](../CONTRIBUTING.md)
 - Licensing notes: [../LICENSE-NOTES.md](../LICENSE-NOTES.md)
 - Agent rules: [../AGENTS.md](../AGENTS.md)
-- Website-specific agent rules: [../website/AGENTS.md](../website/AGENTS.md)
 
 ### Maintainer documentation
 

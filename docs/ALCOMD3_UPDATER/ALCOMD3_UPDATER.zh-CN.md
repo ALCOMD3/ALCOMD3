@@ -135,7 +135,7 @@ Updater JSON generator 会读取 `.sig` 文件，并将内容写入 `signature` 
 $Assets = "artifacts\release-check\v2.1.2-beta.1"
 cargo xtask verify-alcom-updater-json `
     --assets $Assets `
-    --json "website\public\api\gui\tauri-updater-beta.json" `
+    --json "artifacts\release-updater\tauri-updater-beta.json" `
     --expected-signature-purpose release
 ```
 

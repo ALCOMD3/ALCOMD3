@@ -28,7 +28,6 @@
 
 - Rust 改动按影响范围运行 `cargo check`、`cargo test` 或更聚焦的包级命令。
 - GUI 改动按影响范围运行 `npm.cmd run check`、`npm.cmd run lint`、`npm.cmd run build` 或更聚焦验证。
-- Website 改动需同时遵循 `website/AGENTS.md`，并按影响范围运行 `npm.cmd run check`、`npm.cmd run build`。
 - 无法验证时说明原因、风险和未覆盖范围。
 
 ## 文档与发布
