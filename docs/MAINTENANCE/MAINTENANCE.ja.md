@@ -166,9 +166,8 @@ user が manual import を明示的に開始した場合のみ external-app impo
 
 ### Contributor data
 
-app と Website は GitHub の public repository contributors REST endpoint を直接
-request する。GitHub は commit count 順で response を返し、結果を数時間 cache
-する場合がある。
+app は GitHub の public repository contributors REST endpoint を直接 request する。
+GitHub は commit count 順で response を返し、結果を数時間 cache する場合がある。
 
 - unauthenticated request のまま、先頭 100 contributors に制限する。
 - generated snapshot、proxy、allowlist、手動管理の contributor data を追加しない。
@@ -374,13 +373,13 @@ ALCOMD3 は独自の update source と signing key を使う。
   Staged update の起動または適用中に一時的な I/O error が発生した場合も package を保持して
   次回起動時に retry し、決定的な install rejection のみ failed release として記録する。
 - Manual update check は no-update と failed-update の両方で dialog を表示する。
-- Version は `2.1.0-beta.1` のような SemVer string を使う。
+- Version は `3.0.0-beta.3` のような SemVer string を使う。
 - Updater public key は `vrc-get-gui/src/updater-public-key.txt` に置く。GUI はこの
   file を include し、`xtask` verifier も同じ file を読む。
 - Updater private key は git に入れない。
 - Updater installer に署名する場合は `docs/RELEASE/RELEASE.ja.md` と
   `docs/ALCOMD3_UPDATER/ALCOMD3_UPDATER.ja.md` に従う。
-- Website updater JSON を公開する前に、serve される各 JSON file に対して
+- Public updater JSON を公開する前に、serve される各 JSON file に対して
   `cargo xtask verify-alcom-updater-json --assets <directory>` を実行する。
 - 1 updater manifest が `windows-x86_64`、`darwin-aarch64`、`linux-x86_64` を atomic
   に記述する。Updater payload はそれぞれ Windows setup executable、macOS
@@ -394,10 +393,6 @@ ALCOMD3 は独自の update source と signing key を使う。
   sign し、Apple notarization は行わないため、Gatekeeper で初回起動の手動承認が必要になる
   場合がある。ALCOMD3 updater Minisign は `.app.tar.gz` を別に authenticate し、ad-hoc
   code signing はその check を代替・弱体化しない。
-- Website downloads は stable/beta manifests と shared platform catalog から導出する。
-  `2.1.2-beta.1` が 3-platform beta catalog を導入し、stable `2.1.2` も同じ catalog を
-  stable に採用する。Stable 2.1.1 は historical GitHub Release として保持し、legacy asset
-  names から direct links や aliases を生成しない。
 
 ### Windows installer
 
@@ -443,7 +438,7 @@ run は 3 jobs を再実行し、public updater verification は Windows job 内
 release installer で固定 migration baseline を upgrade し、その後にだけ current identity
 を検証する。macOS shard は config-bound ad-hoc signing path を使い、Apple notarization
 は行わない。Assembly は 3 updater payloads を sign/verify し、exact 10 public assets
-だけを許可する。Publish 後、updater workflow は 10 assets すべての attestation を検証し、
+だけを許可する。Publish 後、updater workflow は 10 assets すべてを確認し、
 selected channel の 3-platform metadata を atomic に生成する。
 
 ### Release notes と local build commands

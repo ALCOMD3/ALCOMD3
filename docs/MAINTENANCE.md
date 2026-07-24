@@ -182,9 +182,8 @@ Important areas:
 
 ### Contributor data
 
-The app and Website request GitHub's public repository contributors REST
-endpoint directly. GitHub orders this response by commit count and may cache
-it for several hours.
+The app requests GitHub's public repository contributors REST endpoint directly.
+GitHub orders this response by commit count and may cache it for several hours.
 
 - Keep the request unauthenticated and limited to the first 100 contributors.
 - Do not add a generated snapshot, proxy, allowlist, or manually maintained
@@ -451,13 +450,13 @@ Preserve these rules:
   update also keeps the package retryable on the next startup; only a
   deterministic installation rejection records a failed release.
 - Manual update checks show dialogs for both no-update and failed-update results.
-- Versions use SemVer strings such as `2.1.0-beta.1`.
+- Versions use SemVer strings such as `3.0.0-beta.3`.
 - The updater public key lives in `vrc-get-gui/src/updater-public-key.txt`; the
   GUI includes that file and the `xtask` verifier reads the same file.
 - The updater private key must stay out of git.
 - Follow `docs/RELEASE.md` and `docs/ALCOMD3_UPDATER.md` when signing updater
   installers.
-- Before publishing website updater JSON, run `cargo xtask
+- Before publishing public updater JSON, run `cargo xtask
   verify-alcom-updater-json --assets <directory>` for each JSON file that will
   be served.
 - One updater manifest atomically describes `windows-x86_64`,
@@ -474,10 +473,6 @@ Preserve these rules:
   ad-hoc signs the app and DMG without Apple notarization, so Gatekeeper can require
   manual first-launch approval. ALCOMD3 updater Minisign separately authenticates
   the `.app.tar.gz`; ad-hoc code signing does not replace or weaken that check.
-- Website downloads are derived from the stable/beta manifests and the shared
-  platform catalog. `2.1.2-beta.1` introduced the three-platform beta catalog;
-  stable `2.1.2` adopts it for stable. Stable 2.1.1 remains a historical GitHub
-  Release, and its legacy asset names never produce direct links or aliases.
 
 ### Windows installer
 
@@ -527,7 +522,7 @@ source-bound release installer and validates the current identity only after
 that upgrade. The macOS shard uses the config-bound ad-hoc signing path and is
 not Apple-notarized. Assembly signs and verifies the three updater payloads and
 admits exactly ten public assets. After publication, the updater workflow
-verifies attestations for all ten assets and atomically generates the selected
+checks all ten assets and atomically generates the selected
 channel's three-platform metadata.
 
 ### Release notes and local build commands

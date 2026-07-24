@@ -154,8 +154,8 @@ ALCOMD3 默认拥有自己的运行数据。
 
 ### 贡献者数据
 
-应用和网站直接请求 GitHub 的公开仓库贡献者 REST 接口。GitHub 按提交数量排序，
-并可能将结果缓存数小时。
+应用直接请求 GitHub 的公开仓库贡献者 REST 接口。GitHub 按提交数量排序，并可能将结果
+缓存数小时。
 
 - 保持匿名请求，并将结果限制为前 100 名贡献者。
 - 不要添加生成快照、代理、允许名单或手工维护的贡献者数据。
@@ -347,13 +347,13 @@ ALCOMD3 使用自己的 update source 和 signing key。
   该状态和暂存更新包，并暂停自动安装直到失败状态重新可读。启动或应用暂存更新时若发生瞬时
   I/O 错误，也必须保留更新包以便下次启动重试；只有确定性的安装拒绝才记录为失败版本。
 - 手动检查更新时，无更新和更新失败都显示 dialog。
-- 版本使用 `2.1.0-beta.1` 这类 SemVer 字符串。
+- 版本使用 `3.0.0-beta.3` 这类 SemVer 字符串。
 - updater public key 位于 `vrc-get-gui/src/updater-public-key.txt`；GUI include 这个文件，
   `xtask` 验证器也读取同一文件。
 - updater private key 不得进入 git。
 - 签名 updater installer 时遵循 `docs/RELEASE/RELEASE.zh-CN.md` 和
   `docs/ALCOMD3_UPDATER/ALCOMD3_UPDATER.zh-CN.md`。
-- 发布 website updater JSON 前，对每个将被服务的 JSON 文件运行
+- 发布公开 updater JSON 前，对每个将被服务的 JSON 文件运行
   `cargo xtask verify-alcom-updater-json --assets <directory>`。
 - 单个 updater manifest 原子描述 `windows-x86_64`、`darwin-aarch64` 和
   `linux-x86_64`；对应 updater payload 分别是 Windows setup executable、macOS
@@ -366,9 +366,6 @@ ALCOMD3 使用自己的 update source 和 signing key。
 - `alcomd3.config.json` 中必需的 `macosAdHocSigning` 配置对 app 和 DMG 进行 ad-hoc 签名，
   不进行 Apple 公证，因此 Gatekeeper 可能要求用户在首次启动时人工确认。ALCOMD3 updater
   Minisign 单独验证 `.app.tar.gz`；ad-hoc 代码签名不会取代或削弱该校验。
-- 官网从 stable/beta manifests 与共享平台 catalog 派生下载。`2.1.2-beta.1` 首次启用
-  三平台 beta catalog；stable `2.1.2` 将同一 catalog 用于 stable。Stable 2.1.1 继续作为
-  历史 GitHub Release 保留，其旧资产名不会生成直接下载链接或别名。
 
 ### Windows 安装器
 
@@ -408,7 +405,7 @@ assets 使用。
 `release-assemble`、创建 Draft。上传前，Windows shard 会使用准确的 source-bound 正式
 安装器升级固定迁移基线，并且只在升级后验证当前身份。macOS shard 使用绑定配置的 ad-hoc
 签名路径且未经 Apple 公证；组装阶段签名并验证三个 updater payload，只允许恰好 10 项公开
-资产。公开后，updater workflow 验证全部 10 项资产的 attestation，并原子生成所选 channel
+资产。公开后，updater workflow 核对全部 10 项资产，并原子生成所选 channel
 的三平台 metadata。
 
 ### Release notes 和本地构建命令

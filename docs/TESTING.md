@@ -9,16 +9,15 @@ documented separately in [RELEASE.md](./RELEASE.md).
 | --- | --- | --- |
 | Rust | `cargo test --workspace --exclude windows-installer-wrapper --locked` | VPM behavior, MCP stdio/IPC, updater and release tooling |
 | GUI unit | `npm test` in `vrc-get-gui` | Tauri command serialization, events, cancellation, errors and navigation state |
-| Website browser | `npm test` in `website` | Local static preview, languages, navigation, downloads, updater metadata and mobile layout |
 | Desktop E2E | `Full-chain desktop smoke` | Real Tauri startup on Windows x64, macOS arm64 and Linux x64; first-run setup, isolated project discovery, restart persistence and the disabled-by-default MCP boundary |
 | macOS bundles | `Full-chain desktop smoke` | `.app`, updater archive and DMG structure, arm64 binaries, explicit ad-hoc signatures, copied-app launch and cleanup |
 | Linux packages | `Full-chain desktop smoke` | AppImage/updater archive parity, DEB metadata, fresh install, launch and purge |
 | Windows installer/upgrade | `Full-chain desktop smoke` | Previous stable install, old shared AppId, both historical executable names and legacy shortcuts removed, desktop-shortcut choice preserved, new shortcut targets/new AppId registration, user-data preservation, launch and uninstall |
 | Release CLI plan | `release-build`, `release-assemble`, `release-publish` and `release-preflight` with `--dry-run` | Command construction only, without signing, publication or external writes |
 | Published updater | Scheduled or manual `Full-chain desktop smoke`, Windows job only | Public stable/beta manifest parity, installer download, exact URL/file binding and Minisign verification; stable also requires the authenticated `release` purpose |
-| Formal release chain | `Build release draft` and `Publish updater metadata` | Source-bound native build shards, exact Windows installer upgrade smoke, exact ten-asset allowlist, config-bound macOS ad-hoc signing, three updater Minisign signatures, all ten asset attestations, atomic three-platform metadata, Website build and public endpoint |
+| Formal release chain | `Build release draft` and `Publish updater metadata` | Source-bound native build shards, exact Windows installer upgrade smoke, exact ten-asset allowlist, config-bound macOS ad-hoc signing, three updater Minisign signatures, atomic three-platform metadata and public endpoint |
 
-`Continuous integration` runs the Rust, GUI unit and Website browser layers on
+`Continuous integration` runs the Rust and GUI unit layers on
 pull requests and pushes to `main`. `Full-chain desktop smoke` runs its three
 platform jobs for relevant pull requests and pushes, every Monday at 03:00
 Asia/Shanghai, and on manual dispatch. Public updater checks are a separate step
@@ -44,12 +43,6 @@ npm.cmd test
 npm.cmd run build
 Pop-Location
 
-Push-Location website
-npm.cmd ci
-npx.cmd playwright install chromium
-npm.cmd run check
-npm.cmd test
-Pop-Location
 ```
 
 For the real Windows desktop test, build the debug application first:
@@ -125,20 +118,16 @@ package manager.
 The Draft workflow runs `preflight`, builds source-bound Windows x64, macOS
 arm64, and Linux x64 shards on native runners, then uses `release-assemble` to
 verify the shards and create three updater Minisign signatures. The published
-updater workflow downloads and verifies the attestations for all ten Release
-assets, verifies all three updater payload/signature pairs, and atomically
+updater workflow checks all ten Release assets, verifies all three updater
+payload/signature pairs, and atomically
 generates one manifest containing `windows-x86_64`, `darwin-aarch64`, and
-`linux-x86_64`. Website tests cover the legacy stable 2.1.1 Release-page
-fallback before stable 2.1.2 metadata is published, plus canonical stable and
-beta three-platform catalogs driven by their manifests and
-`alcomd3.config.json`.
+`linux-x86_64`.
 
 The release CLI dry-runs are plan smoke tests; they do not prove updater signing material,
 clean/synchronized `main`, or live GitHub Release state. This workflow never reads updater signing secrets, creates a GitHub Release,
-publishes updater metadata, pushes a commit or deploys the Website. Real signing,
+publishes updater metadata or pushes a commit. Real signing,
 Draft creation and public updater verification remain gates of the documented
 release workflows.
 
-Website browser tests reject unexpected external HTTP requests. Rust integration
-tests use temporary directories and loopback listeners. Tests must not depend on
+Rust integration tests use temporary directories and loopback listeners. Tests must not depend on
 or modify a maintainer's existing ALCOMD3, VCC or ALCOM data.

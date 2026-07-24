@@ -37,11 +37,17 @@ env:
 jobs:
     preflight:
         name: Validate release source and Draft state
-        if: github.ref == 'refs/heads/main'
         runs-on: windows-2025
         timeout-minutes: 30
 
         steps:
+            - name: Require main branch dispatch
+              shell: pwsh
+              run: |
+                  if ($env:GITHUB_REF -ne 'refs/heads/main') {
+                      throw "Release drafts must be dispatched from main, got $env:GITHUB_REF"
+                  }
+
             - name: Checkout pinned release source
               uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
               with:

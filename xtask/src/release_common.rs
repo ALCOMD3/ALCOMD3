@@ -523,7 +523,7 @@ pub fn create_release_notes_if_missing(ctx: &ReleaseContext, dry_run: bool) -> R
     fs::write(
         &ctx.release_notes,
         format!(
-            "# ALCOMD3 v{version}\n\n<!-- Release note comparison base: {comparison_base}. Remove all HTML comments before release. -->\n\n## English\n\n<!-- Summarize this release in one paragraph. -->\n\n### Application updates\n\n<!-- List user-visible application changes, or state that there are none. -->\n\n### Website updates\n\n<!-- List user-visible website changes, or state that there are none. -->\n\n### Installation and upgrade\n\n<!-- List installation and upgrade changes, or state that there are none. -->\n\n### Compatibility and security\n\n<!-- List compatibility, security, or known-issue changes, or state that there are none. -->\n\n## 日本語\n\n<!-- このリリースの概要を 1 段落で記述してください。 -->\n\n### アプリの更新\n\n<!-- ユーザーに見えるアプリの変更、または変更がないことを記述してください。 -->\n\n### Web サイトの更新\n\n<!-- ユーザーに見える Web サイトの変更、または変更がないことを記述してください。 -->\n\n### インストールとアップグレード\n\n<!-- インストールとアップグレードの変更、または変更がないことを記述してください。 -->\n\n### 互換性とセキュリティ\n\n<!-- 互換性、セキュリティ、既知の問題の変更、または変更がないことを記述してください。 -->\n\n## 中文\n\n<!-- 用一个段落概述此版本。 -->\n\n### 应用更新\n\n<!-- 列出面向用户的应用变化，或说明没有此类变化。 -->\n\n### 网站更新\n\n<!-- 列出面向用户的网站变化，或说明没有此类变化。 -->\n\n### 安装与升级\n\n<!-- 列出安装与升级变化，或说明没有此类变化。 -->\n\n### 兼容性与安全\n\n<!-- 列出兼容性、安全或已知问题变化，或说明没有此类变化。 -->\n",
+            "# ALCOMD3 v{version}\n\n<!-- Release note comparison base: {comparison_base}. Remove all HTML comments before release. -->\n\n## English\n\n<!-- Summarize this release in one paragraph. -->\n\n### Application updates\n\n<!-- List user-visible application changes, or state that there are none. -->\n\n### Installation and upgrade\n\n<!-- List installation and upgrade changes, or state that there are none. -->\n\n### Compatibility and security\n\n<!-- List compatibility, security, or known-issue changes, or state that there are none. -->\n\n## 日本語\n\n<!-- このリリースの概要を 1 段落で記述してください。 -->\n\n### アプリの更新\n\n<!-- ユーザーに見えるアプリの変更、または変更がないことを記述してください。 -->\n\n### インストールとアップグレード\n\n<!-- インストールとアップグレードの変更、または変更がないことを記述してください。 -->\n\n### 互換性とセキュリティ\n\n<!-- 互換性、セキュリティ、既知の問題の変更、または変更がないことを記述してください。 -->\n\n## 中文\n\n<!-- 用一个段落概述此版本。 -->\n\n### 应用更新\n\n<!-- 列出面向用户的应用变化，或说明没有此类变化。 -->\n\n### 安装与升级\n\n<!-- 列出安装与升级变化，或说明没有此类变化。 -->\n\n### 兼容性与安全\n\n<!-- 列出兼容性、安全或已知问题变化，或说明没有此类变化。 -->\n",
             version = ctx.version,
             comparison_base = ctx.release_notes_comparison_base(),
         ),
@@ -543,32 +543,25 @@ pub fn ensure_release_notes_ready(ctx: &ReleaseContext) -> Result<()> {
 }
 
 fn validate_release_notes_format(version: &str, notes: &str) -> Result<()> {
-    const LEGACY_DYNAMIC_RELEASE_NOTES_THROUGH: &str = "2.1.3-beta.2";
-    const LOCALES: [(&str, [&str; 4]); 3] = [
+    const LOCALES: [(&str, &[&str]); 3] = [
         (
             "English",
-            [
+            &[
                 "Application updates",
-                "Website updates",
                 "Installation and upgrade",
                 "Compatibility and security",
             ],
         ),
         (
             "日本語",
-            [
+            &[
                 "アプリの更新",
-                "Web サイトの更新",
                 "インストールとアップグレード",
                 "互換性とセキュリティ",
             ],
         ),
-        (
-            "中文",
-            ["应用更新", "网站更新", "安装与升级", "兼容性与安全"],
-        ),
+        ("中文", &["应用更新", "安装与升级", "兼容性与安全"]),
     ];
-
     let lines = notes.lines().collect::<Vec<_>>();
     let expected_title = format!("# ALCOMD3 v{version}");
     if lines.first().copied() != Some(expected_title.as_str()) {
@@ -625,13 +618,6 @@ fn validate_release_notes_format(version: &str, notes: &str) -> Result<()> {
         bail!("release notes must not contain content before the English locale section");
     }
 
-    let release_version = Version::parse(version)
-        .with_context(|| format!("invalid release notes SemVer: {version}"))?;
-    let legacy_cutoff = Version::parse(LEGACY_DYNAMIC_RELEASE_NOTES_THROUGH)
-        .expect("legacy release notes cutoff must be valid SemVer");
-    let requires_fixed_categories = release_version > legacy_cutoff;
-    let mut legacy_topic_count = None;
-
     for (locale_index, ((locale_name, expected_topic_headings), (start, _))) in
         LOCALES.iter().zip(locale_sections.iter()).enumerate()
     {
@@ -660,25 +646,11 @@ fn validate_release_notes_format(version: &str, notes: &str) -> Result<()> {
             .iter()
             .map(|(_, heading)| *heading)
             .collect::<Vec<_>>();
-        if requires_fixed_categories && topic_headings.as_slice() != expected_topic_headings {
+        if topic_headings.as_slice() != *expected_topic_headings {
             bail!(
                 "release notes locale {locale_name} level-3 headings must be exactly and in order: {}",
                 expected_topic_headings.join(", ")
             );
-        }
-        if !requires_fixed_categories {
-            if topic_sections.is_empty() {
-                bail!("release notes locale {locale_name} must contain at least one change topic");
-            }
-            match legacy_topic_count {
-                Some(count) if count != topic_sections.len() => {
-                    bail!(
-                        "legacy release notes locale sections must have the same number of level-3 topics"
-                    )
-                }
-                None => legacy_topic_count = Some(topic_sections.len()),
-                _ => {}
-            }
         }
 
         let summary = &lines[*start + 1..topic_sections[0].0];
@@ -1145,7 +1117,7 @@ mod tests {
     }
 
     fn valid_release_notes() -> String {
-        r#"# ALCOMD3 v2.1.3-beta.3
+        r#"# ALCOMD3 v3.0.0
 
 ## English
 
@@ -1154,10 +1126,6 @@ This beta fixes a user-visible compatibility issue.
 ### Application updates
 
 - Fixed the compatibility issue.
-
-### Website updates
-
-- No user-visible website changes in this release.
 
 ### Installation and upgrade
 
@@ -1175,10 +1143,6 @@ This beta fixes a user-visible compatibility issue.
 
 - 互換性の問題を修正しました。
 
-### Web サイトの更新
-
-- このリリースにユーザー向けの Web サイトの変更はありません。
-
 ### インストールとアップグレード
 
 - このリリースにインストールまたはアップグレードの変更はありません。
@@ -1195,10 +1159,6 @@ This beta fixes a user-visible compatibility issue.
 
 - 修复兼容性问题。
 
-### 网站更新
-
-- 本版本没有网站方面的用户可见变化。
-
 ### 安装与升级
 
 - 本版本没有安装或升级方面的变化。
@@ -1210,44 +1170,9 @@ This beta fixes a user-visible compatibility issue.
         .to_string()
     }
 
-    fn legacy_release_notes() -> String {
-        r#"# ALCOMD3 v2.1.3-beta.2
-
-## English
-
-This beta fixes package list behavior.
-
-### Package list reliability
-
-- Fixed package list behavior.
-
-## 日本語
-
-この beta ではパッケージ一覧の動作を修正しました。
-
-### パッケージ一覧の信頼性
-
-- パッケージ一覧の動作を修正しました。
-
-## 中文
-
-此测试版修复了软件包列表行为。
-
-### 软件包列表可靠性
-
-- 修复软件包列表行为。
-"#
-        .to_string()
-    }
-
     #[test]
     fn release_notes_accept_canonical_fixed_categories() {
-        validate_release_notes_format("2.1.3-beta.3", &valid_release_notes()).unwrap();
-    }
-
-    #[test]
-    fn release_notes_accept_published_legacy_categories_through_beta_2() {
-        validate_release_notes_format("2.1.3-beta.2", &legacy_release_notes()).unwrap();
+        validate_release_notes_format("3.0.0", &valid_release_notes()).unwrap();
     }
 
     #[test]
@@ -1256,19 +1181,15 @@ This beta fixes package list behavior.
             "### Application updates",
             "### Application updates\n\n#### Fixes",
         );
-        let error = validate_release_notes_format("2.1.3-beta.3", &notes).unwrap_err();
+        let error = validate_release_notes_format("3.0.0", &notes).unwrap_err();
 
         assert!(error.to_string().contains("level-4"));
     }
 
     #[test]
     fn release_notes_reject_title_with_trailing_whitespace() {
-        let notes = valid_release_notes().replacen(
-            "# ALCOMD3 v2.1.3-beta.3",
-            "# ALCOMD3 v2.1.3-beta.3 ",
-            1,
-        );
-        let error = validate_release_notes_format("2.1.3-beta.3", &notes).unwrap_err();
+        let notes = valid_release_notes().replacen("# ALCOMD3 v3.0.0", "# ALCOMD3 v3.0.0 ", 1);
+        let error = validate_release_notes_format("3.0.0", &notes).unwrap_err();
 
         assert!(error.to_string().contains("title must be exactly"));
     }
@@ -1276,7 +1197,7 @@ This beta fixes package list behavior.
     #[test]
     fn release_notes_reject_empty_topic_heading() {
         let notes = valid_release_notes().replacen("### Application updates", "### ", 1);
-        let error = validate_release_notes_format("2.1.3-beta.3", &notes).unwrap_err();
+        let error = validate_release_notes_format("3.0.0", &notes).unwrap_err();
 
         assert!(
             error
@@ -1292,7 +1213,7 @@ This beta fixes package list behavior.
             "This beta fixes a user-visible compatibility issue.\n\nThis is a second paragraph.",
             1,
         );
-        let error = validate_release_notes_format("2.1.3-beta.3", &notes).unwrap_err();
+        let error = validate_release_notes_format("3.0.0", &notes).unwrap_err();
 
         assert!(error.to_string().contains("exactly one summary paragraph"));
     }
@@ -1304,7 +1225,7 @@ This beta fixes package list behavior.
             "- This is not a summary paragraph.",
             1,
         );
-        let error = validate_release_notes_format("2.1.3-beta.3", &notes).unwrap_err();
+        let error = validate_release_notes_format("3.0.0", &notes).unwrap_err();
 
         assert!(error.to_string().contains("exactly one summary paragraph"));
     }
@@ -1312,7 +1233,7 @@ This beta fixes package list behavior.
     #[test]
     fn release_notes_reject_empty_bullet() {
         let notes = valid_release_notes().replacen("- Fixed the compatibility issue.", "- ", 1);
-        let error = validate_release_notes_format("2.1.3-beta.3", &notes).unwrap_err();
+        let error = validate_release_notes_format("3.0.0", &notes).unwrap_err();
 
         assert!(
             error
@@ -1328,7 +1249,7 @@ This beta fixes package list behavior.
             "   - Fixed the compatibility issue.",
             1,
         );
-        let error = validate_release_notes_format("2.1.3-beta.3", &notes).unwrap_err();
+        let error = validate_release_notes_format("3.0.0", &notes).unwrap_err();
 
         assert!(error.to_string().contains("non-empty bullet"));
     }
@@ -1340,7 +1261,7 @@ This beta fixes package list behavior.
             "```text\n- Fixed the compatibility issue.\n```",
             1,
         );
-        let error = validate_release_notes_format("2.1.3-beta.3", &notes).unwrap_err();
+        let error = validate_release_notes_format("3.0.0", &notes).unwrap_err();
 
         assert!(error.to_string().contains("fenced code"));
     }
@@ -1352,7 +1273,7 @@ This beta fixes package list behavior.
             "   ### Application updates",
             1,
         );
-        let error = validate_release_notes_format("2.1.3-beta.3", &notes).unwrap_err();
+        let error = validate_release_notes_format("3.0.0", &notes).unwrap_err();
 
         assert!(error.to_string().contains("headings must not be indented"));
     }
@@ -1364,7 +1285,7 @@ This beta fixes package list behavior.
             "### Package list reliability",
             1,
         );
-        let error = validate_release_notes_format("2.1.3-beta.3", &notes).unwrap_err();
+        let error = validate_release_notes_format("3.0.0", &notes).unwrap_err();
 
         assert!(error.to_string().contains("exactly and in order"));
     }
@@ -1372,10 +1293,10 @@ This beta fixes package list behavior.
     #[test]
     fn release_notes_reject_missing_fixed_category() {
         let notes = valid_release_notes().replace(
-            "### Website updates\n\n- No user-visible website changes in this release.\n\n",
+            "### Compatibility and security\n\n- No data migration is required.\n\n",
             "",
         );
-        let error = validate_release_notes_format("2.1.3-beta.3", &notes).unwrap_err();
+        let error = validate_release_notes_format("3.0.0", &notes).unwrap_err();
 
         assert!(error.to_string().contains("exactly and in order"));
     }
@@ -1383,10 +1304,10 @@ This beta fixes package list behavior.
     #[test]
     fn release_notes_reject_reordered_fixed_categories() {
         let notes = valid_release_notes().replace(
-            "### Website updates\n\n- No user-visible website changes in this release.\n\n### Installation and upgrade\n\n- No installation or upgrade changes in this release.",
-            "### Installation and upgrade\n\n- No installation or upgrade changes in this release.\n\n### Website updates\n\n- No user-visible website changes in this release.",
+            "### Installation and upgrade\n\n- No installation or upgrade changes in this release.\n\n### Compatibility and security\n\n- No data migration is required.",
+            "### Compatibility and security\n\n- No data migration is required.\n\n### Installation and upgrade\n\n- No installation or upgrade changes in this release.",
         );
-        let error = validate_release_notes_format("2.1.3-beta.3", &notes).unwrap_err();
+        let error = validate_release_notes_format("3.0.0", &notes).unwrap_err();
 
         assert!(error.to_string().contains("exactly and in order"));
     }

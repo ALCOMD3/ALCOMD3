@@ -9,7 +9,7 @@ use anyhow::Result;
 /// Prepare release source files: workspace version, GUI npm version, lockfiles, and release notes.
 #[derive(clap::Parser)]
 pub struct Command {
-    /// Release version, for example 2.0.1 or 2.1.0-beta.1.
+    /// Release version, for example 3.0.0 or 3.1.0-beta.1.
     #[arg(long)]
     version: String,
 
@@ -21,7 +21,7 @@ pub struct Command {
     #[arg(long, default_value_t = default_repo())]
     repo: String,
 
-    /// Public website base URL.
+    /// Public updater endpoint base URL.
     #[arg(long, default_value_t = default_site_base_url())]
     site_base_url: String,
 

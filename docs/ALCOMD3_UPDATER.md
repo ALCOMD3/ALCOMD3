@@ -37,11 +37,6 @@ ALCOMD3 releases.
 The updater JSON must contain the artifact URL and literal signature content,
 not a signature file URL.
 
-`2.1.2-beta.1` introduced this three-platform contract for beta; stable `2.1.2`
-adopts the same contract. Stable 2.1.1 remains an immutable historical Release,
-and the website never synthesizes direct links or compatibility aliases for its
-legacy filenames.
-
 ### Generate a key pair
 
 Generate a key pair only when bootstrapping or intentionally rotating the updater key:
@@ -156,7 +151,7 @@ the `signature` field.
 
 ### Verify updater JSON
 
-Always verify the final updater JSON before publishing the website. The default
+Always verify the final updater JSON before publishing public metadata. The default
 published updater workflow performs this against the downloaded public
 installer; use this command for local artifact verification:
 

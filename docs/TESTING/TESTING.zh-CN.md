@@ -9,17 +9,16 @@
 | --- | --- | --- |
 | Rust | `cargo test --workspace --exclude windows-installer-wrapper --locked` | VPM、MCP stdio/IPC、updater 与发布工具 |
 | GUI 单元测试 | 在 `vrc-get-gui` 运行 `npm test` | Tauri command 序列化、事件、取消、错误与导航状态 |
-| Website 浏览器测试 | 在 `website` 运行 `npm test` | 本地静态预览、多语言、导航、下载、updater metadata 与移动布局 |
 | 桌面 E2E | `Full-chain desktop smoke` | 在 Windows x64、macOS arm64 和 Linux x64 上真实启动 Tauri，验证首次配置、隔离项目发现、重启持久化和 MCP 默认禁用边界 |
 | macOS bundles | `Full-chain desktop smoke` | `.app`、updater 压缩包和 DMG 结构、arm64 二进制、显式 ad-hoc 签名、复制安装后的启动与清理 |
 | Linux packages | `Full-chain desktop smoke` | AppImage/updater 压缩包一致性、DEB metadata、全新安装、启动与卸载 |
 | Windows 安装/升级 | `Full-chain desktop smoke` | 旧 stable 安装、旧共享 AppId/两种历史程序名/旧快捷方式清理、桌面快捷方式选择保留、新快捷方式目标与新 AppId 注册、用户数据保留、启动与卸载 |
 | 发布 CLI 计划 | 使用 `--dry-run` 的 `release-build`、`release-assemble`、`release-publish` 和 `release-preflight` | 只检查命令构造，不签名、不发布、不写外部状态 |
 | 已发布 updater | 定时或手动运行的 `Full-chain desktop smoke`，仅 Windows job | 比对线上 stable/beta manifest、下载安装包、校验精确 URL/文件绑定和 Minisign 签名；stable 还强制校验认证的 `release` purpose |
-| 正式发布链 | `Build release draft` 和 `Publish updater metadata` | 绑定 source 的原生构建 shard、准确 Windows 安装器升级 smoke、精准 10 资产允许列表、绑定配置的 macOS ad-hoc 签名、三份 updater Minisign 签名、全部 10 项资产 attestation、原子三平台 metadata、Website 构建和公开 endpoint |
+| 正式发布链 | `Build release draft` 和 `Publish updater metadata` | 绑定 source 的原生构建 shard、准确 Windows 安装器升级 smoke、精准 10 资产允许列表、绑定配置的 macOS ad-hoc 签名、三份 updater Minisign 签名、原子三平台 metadata 和公开 endpoint |
 
-`Continuous integration` 在 PR 和 `main` push 上执行 Rust、GUI 单元测试及
-Website 浏览器测试。`Full-chain desktop smoke` 的三个平台 job 会在相关 PR、相关
+`Continuous integration` 在 PR 和 `main` push 上执行 Rust、GUI 单元测试。
+`Full-chain desktop smoke` 的三个平台 job 会在相关 PR、相关
 `main` push、每周一北京时间 03:00 和手动触发时执行。线上 updater 校验是 Windows
 job 内的独立步骤，只在定时和手动执行时运行；它会获取公开 manifest、与检出的
 manifest 做语义比对，再校验公开响应指向的安装包。
@@ -42,12 +41,6 @@ npm.cmd test
 npm.cmd run build
 Pop-Location
 
-Push-Location website
-npm.cmd ci
-npx.cmd playwright install chromium
-npm.cmd run check
-npm.cmd test
-Pop-Location
 ```
 
 真实 Windows 桌面测试需要先构建调试程序：
@@ -105,8 +98,8 @@ source-bound release shard 的准确 setup EXE 重复升级 smoke，且历史基
 
 发布 CLI dry-run 只是命令计划 smoke，不证明 updater 签名材料、干净且已同步的 `main` 或线上
 GitHub Release 状态。该 workflow 不读取 updater 签名 Secret，不创建 GitHub Release，不发布 updater
-metadata，不推送提交，也不部署 Website。真实签名、Draft 创建和线上 updater 校验仍由
+metadata，也不推送提交。真实签名、Draft 创建和线上 updater 校验仍由
 现有发布 workflow 按发布手册把关。
 
-Website 浏览器测试会拒绝意外外部 HTTP 请求；Rust 集成测试只使用临时目录和 loopback
-监听。测试不得依赖或修改维护者现有的 ALCOMD3、VCC 或 ALCOM 数据。
+Rust 集成测试只使用临时目录和 loopback 监听。测试不得依赖或修改维护者现有的
+ALCOMD3、VCC 或 ALCOM 数据。

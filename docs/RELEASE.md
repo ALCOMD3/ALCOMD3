@@ -47,10 +47,10 @@ An explicit audit request stays read-only. An explicit release request is an
 end-to-end operation, not a readiness report: prepare and validate the source
 release files, write complete release notes from the correct comparison base,
 generate all seven localized updater summaries, commit and push the source
-release, then dispatch and monitor the Draft workflow. Pause only at the manual
-Draft publication gate. After the Draft is published, continue monitoring the
-updater workflow, metadata commit, Cloudflare Pages deployment, and public
-endpoint. The release is complete only after all of those checks pass.
+ release, then dispatch and monitor the Draft workflow. Pause only at the manual
+ Draft publication gate. After the Draft is published, continue monitoring the
+ updater workflow, metadata commit, and public endpoint. The release is complete
+ only after those checks pass.
 
 ### Version ownership
 
@@ -69,22 +69,15 @@ Use exactly one channel.
 
 | Channel | Version example | GitHub Release type | Updater JSON |
 | --- | --- | --- | --- |
-| Stable | `2.0.1` | normal release | Website repository `public/api/gui/tauri-updater.json` |
-| Beta | `2.1.0-beta.1` | prerelease | Website repository `public/api/gui/tauri-updater-beta.json` |
+| Stable | `3.0.0` | normal release | Metadata repository `public/api/gui/tauri-updater.json` |
+| Beta | `3.1.0-beta.1` | prerelease | Metadata repository `public/api/gui/tauri-updater-beta.json` |
 
-The first formal multi-platform release was `2.1.2-beta.1`; `2.1.2` was the
-first stable release to adopt the same contract. Its manifest is published, so
-the stable catalog uses the three-platform manifest. Stable 2.1.1 remains an
-immutable historical GitHub Release, and the website does not derive direct
-links from its legacy assets. Beta remains a separately labeled choice, and the
-website does not recommend a release channel. When the browser platform is
-recognized, only the matching stable package card is visually emphasized; beta
-packages are never emphasized.
+The first visible release in this repository is `3.0.0`.
 
 Set variables in PowerShell:
 
 ```powershell
-$Version = "2.0.1"
+$Version = "3.0.0"
 $Channel = "stable"
 ```
 
@@ -94,14 +87,12 @@ prerelease metadata.
 Repository prerequisites:
 
 - store `ALCOMD3_UPDATER_PRIVATE_KEY`, `ALCOMD3_UPDATER_PRIVATE_KEY_PASSWORD`, and
-  `ALCOMD3_WEBSITE_DEPLOY_KEY` as repository Actions Secrets;
-- keep automatic Cloudflare Pages production deployment enabled for the configured
-  Website repository's `main` branch.
+  `ALCOMD3_WEBSITE_DEPLOY_KEY` as repository Actions Secrets.
 
 macOS releases support ad-hoc signing only and require no Apple account or Apple
 Secrets. The signing command exposes no certificate identity or notarization
 options. Platform-specific build, signing, installation, and update mechanisms
-are technical contracts only. Release notes, updater notes, and the website use
+are technical contracts only. Release notes and updater notes use
 one policy for every published platform: they do not add platform-only
 disclosures, warnings, instructions, or help links solely because of those
 mechanisms. Name a platform only for a user-visible change relevant to that
@@ -146,7 +137,7 @@ This command:
 
 - updates `Cargo.toml` workspace version;
 - refreshes `Cargo.lock` workspace package versions;
-- updates GUI and website npm versions without creating tags;
+- updates the GUI npm version without creating tags;
 - refreshes npm lockfiles;
 - creates `release-notes/ALCOMD3_$Version.md` if missing;
 - prints the resulting `git status --short`.
@@ -162,10 +153,9 @@ Release notes must use the correct comparison base:
 Release notes also use one canonical localized structure. The title is exactly
 `# ALCOMD3 v$Version`, followed by `## English`, `## 日本語`, and `## 中文` in
 that order. Each locale starts with one summary paragraph and then retains exactly
-four level-3 categories in this order: application updates, website updates,
-installation and upgrade, and compatibility and security. Their localized titles
-must be `Application updates` / `アプリの更新` / `应用更新`, `Website updates` /
-`Web サイトの更新` / `网站更新`, `Installation and upgrade` /
+three level-3 categories in this order: application updates, installation and
+upgrade, and compatibility and security. Their localized titles must be
+`Application updates` / `アプリの更新` / `应用更新`, `Installation and upgrade` /
 `インストールとアップグレード` / `安装与升级`, and
 `Compatibility and security` / `互換性とセキュリティ` / `兼容性与安全`.
 Do not omit, reorder, rename, or add release-specific level-3 headings. Every
@@ -175,8 +165,8 @@ fenced code blocks, indented ATX headings, and indented top-level bullets are no
 permitted. Do not fill the fixed structure with routine platform disclosures.
 `release-validate` enforces the exact headings and structure; release review must
 confirm that localized bullets also have the same meaning and order.
-Published notes through `2.1.3-beta.2` retain their historical headings and must
-not be rewritten; the fixed four-category contract applies to later releases.
+The first visible release is `3.0.0`, and the fixed three-category contract
+applies from that release onward.
 
 Also create or update `release-notes/ALCOMD3_$Version.updater-notes.json`.
 This file is a short localized summary for the in-app updater dialog, not the
@@ -289,9 +279,7 @@ Before publishing, confirm:
 - no additional uploaded assets are present;
 
 The platform and architecture are intentionally explicit in every new public
-filename. Stable 2.1.1 remains an immutable historical GitHub Release; its
-legacy Windows asset names are not part of the new catalog and are not
-translated into direct website download links or compatibility aliases.
+filename. Historical Release assets are not renamed or rewritten.
 
 Publish the Draft manually in the GitHub UI. This is the release gate; the
 default build workflow does not bypass it.
@@ -317,29 +305,27 @@ and source commit from GitHub.
   signature, and embedded public key before replacing the metadata file;
 - rejects updater version rollback and permits same-version retries only when
   they regenerate byte-identical metadata;
-- clones the configured Website repository and writes the selected channel JSON
+- clones the configured metadata repository and writes the selected channel JSON
   directly to its configured repository path;
-- commits and pushes only that JSON to the Website repository `main` branch;
+- commits and pushes only that JSON to the metadata repository `main` branch;
 - waits for the public updater endpoint to expose the same version, three exact
   platform URLs, and signatures.
 
 After the public endpoint passes, the job summary records the version, channel,
 Release and source commit, whether a metadata commit was created, the final
-Website repository commit, and the verified endpoint.
+metadata repository commit, and the verified endpoint.
 
 The updater workflow does not receive the private signing key. Checkout does
 not persist credentials; `GH_TOKEN` is step-scoped and removed from non-GitHub
-cargo and git child processes. The push to the Website repository triggers its
-Cloudflare Pages production deployment. Keep automatic production-branch
-deployment enabled for that repository's `main`.
+cargo and git child processes.
 
 ### 7. Confirm completion and handle retries
 
 The release is complete only when **Publish updater metadata** and the public
-endpoint check both pass. If Cloudflare Pages is still deploying, the workflow
-retries the endpoint check for a bounded period. A timeout does not roll back
-the already verified metadata commit; inspect the Pages deployment, fix the
-deployment issue, and rerun the workflow. If the JSON is already current, the
+endpoint check both pass. The workflow retries the endpoint check for a bounded
+period. A timeout does not roll back the already verified metadata commit;
+inspect the metadata hosting path, fix the publication issue, and rerun the
+workflow. If the JSON is already current, the
 same Release regenerates byte-identical JSON, so the rerun skips commit/push
 and continues with the endpoint check.
 
@@ -386,7 +372,7 @@ retargets that Draft to the verified build source before post-upload validation.
 Local publication still requires explicit authorization; add `--publish` only
 when the user has authorized making the Release public. Publishing either an
 Actions or local Draft triggers the same updater workflow. Updater metadata
-publication is Actions-only so that attestation, source binding, monotonic
+publication is Actions-only so that source binding, monotonic
 version, serialized queue, and public endpoint checks cannot be skipped.
 During the Windows identity migration, exceptional local publication also
 cannot bypass the GitHub-hosted formal installer upgrade smoke. Use the Draft
@@ -424,6 +410,4 @@ Stop the release if:
   no compatible Draft or an unexpected asset;
 - the updater signing key cannot be decrypted or does not match the embedded
   public key;
-- Cloudflare Pages automatic production deployment for the Website repository
-  `main` branch is disabled;
-- website updater JSON would be deployed before GitHub Release assets are public.
+- updater JSON would be published before GitHub Release assets are public.
